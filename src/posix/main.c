@@ -70,7 +70,7 @@
 
 #include "lib/platform/reset_util.h"
 
-extern "C" void otGetInstance(otInstance **instance, pthread_t *instanceId);
+extern void otGetInstance(otInstance **instance, pthread_t *instanceId);
 
 /**
  * This function initializes NCP app.

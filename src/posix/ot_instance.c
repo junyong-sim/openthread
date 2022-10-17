@@ -161,11 +161,12 @@ void otCreateInstance()
     gInstance = InitInstance(&config);
     syslog(LOG_INFO, "ot instance create success!!!");
 
-	gWait = 0;
 	otIp6SetEnabled(gInstance, true);
 	syslog(LOG_INFO, "if config up!!!");
 	otThreadSetEnabled(gInstance, true);
 	syslog(LOG_INFO, "thread start!!!");
+	gWait = 0;
+	
 	while (true)
     {
 		syslog(LOG_INFO, "Enter thread mainloop");
@@ -225,7 +226,9 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId) {
 	syslog(LOG_INFO, "Before otThread");
 	pthread_create(&gthreadId, NULL, otThreadMainLoop, NULL);
 	
-	while(gWait) {}
+	while(gWait) {
+        syslog(LOG_INFO, "Wait in chipstdeviceapp thread!!!");
+	}
 	
 	*instance = gInstance;
 	*instanceId = gthreadId;
@@ -243,5 +246,6 @@ void otDestroyInstance(otInstance **instance, int instanceId)  {
 	syslog(LOG_INFO, "otDestroyInstance");
 	gthreadId = 0;
 	gInstance = NULL;
+	gWait = 1;
 	otSysDeinit();
 }
