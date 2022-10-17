@@ -35,6 +35,7 @@ OPENTHREAD_SOURCE_VERSION := $(shell git -C $(LOCAL_PATH) describe --always --ma
 
 OPENTHREAD_PROJECT_CFLAGS                                                 ?= \
     -DOPENTHREAD_PROJECT_CORE_CONFIG_FILE=\"openthread-core-posix-config.h\" \
+    -DOPENTHREAD_ENABLE_ANDROID_NDK \
     $(NULL)
 
 OPENTHREAD_PUBLIC_CFLAGS                                         := \
@@ -52,8 +53,13 @@ OPENTHREAD_PUBLIC_CFLAGS                                         := \
     -DOPENTHREAD_CONFIG_TMF_NETDATA_SERVICE_ENABLE=1                \
     -DOPENTHREAD_FTD=1                                              \
     -DOPENTHREAD_PLATFORM_POSIX=1                                   \
-    -DOPENTHREAD_POSIX_CONFIG_RCP_PTY_ENABLE=1                      \
+    -DOPENTHREAD_POSIX_CONFIG_RCP_PTY_ENABLE=0                   \
     -DOPENTHREAD_SPINEL_CONFIG_OPENTHREAD_MESSAGE_ENABLE=1          \
+    -DOPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS=3                  \
+    -DOPENTHREAD_CONFIG_POSIX_SETTINGS_PATH=\"/data/thread\"        \
+    -DOPENTHREAD_CONFIG_COMMISSIONER_ENABLE=1                       \
+    -DOPENTHREAD_POSIX_CONFIG_DAEMON_SOCKET_BASENAME=\"/dev/socket/openthread-%s\"         \
+    -DOPENTHREAD_POSIX_TUN_DEVICE=\"/dev/tun\"                      \
     $(NULL)
 
 OPENTHREAD_PRIVATE_CFLAGS                                        := \
@@ -405,6 +411,7 @@ LOCAL_SRC_FILES                                                  := \
     src/posix/platform/trel.cpp                                     \
     src/posix/platform/udp.cpp                                      \
     src/posix/platform/utils.cpp                                    \
+    src/posix/ot_instance.c                                         \
     third_party/mbedtls/repo/library/aes.c                          \
     third_party/mbedtls/repo/library/aesni.c                        \
     third_party/mbedtls/repo/library/arc4.c                         \
@@ -553,7 +560,21 @@ LOCAL_SRC_FILES                            := \
     src/cli/cli_udp.cpp                       \
     $(NULL)
 
-include $(BUILD_STATIC_LIBRARY)
+LOCAL_STATIC_LIBRARIES = ot-core
+
+include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libcutils
+LOCAL_SRC_FILES := libcutils.so
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include
+include $(PREBUILT_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libutils
+LOCAL_SRC_FILES := libutils.so
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include
+include $(PREBUILT_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 
@@ -587,10 +608,10 @@ LOCAL_CPPFLAGS                                                              := \
     -pedantic-errors                                                           \
     $(NULL)
 
-LOCAL_LDLIBS                               := \
-    -lanl                                     \
-    -lrt                                      \
-    -lutil
+#LOCAL_LDLIBS                               := \
+#    -lanl                                     \
+#    -lrt                                      \
+#    -lutil
 
 LOCAL_SRC_FILES                            := \
     src/posix/cli_readline.cpp                \
@@ -598,7 +619,7 @@ LOCAL_SRC_FILES                            := \
     src/posix/main.c                          \
     $(NULL)
 
-LOCAL_STATIC_LIBRARIES = libopenthread-cli ot-core
+LOCAL_SHARED_LIBRARIES = libopenthread-cli
 include $(BUILD_EXECUTABLE)
 
 ifeq ($(USE_OTBR_DAEMON), 1)

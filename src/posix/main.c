@@ -70,6 +70,8 @@
 
 #include "lib/platform/reset_util.h"
 
+extern "C" void otGetInstance(otInstance **instance, pthread_t *instanceId);
+
 /**
  * This function initializes NCP app.
  *
@@ -192,7 +194,7 @@ static void ParseArg(int aArgCount, char *aArgVector[], PosixConfig *aConfig)
     memset(aConfig, 0, sizeof(*aConfig));
 
     aConfig->mPlatformConfig.mSpeedUpFactor = 1;
-    aConfig->mLogLevel                      = OT_LOG_LEVEL_CRIT;
+    aConfig->mLogLevel                      = OT_LOG_LEVEL_DEBG;
 #ifdef __linux__
     aConfig->mPlatformConfig.mRealTimeSignal = SIGRTMIN;
 #endif
@@ -313,6 +315,7 @@ void otTaskletsSignalPending(otInstance *aInstance)
     OT_UNUSED_VARIABLE(aInstance);
 }
 
+#if defined(OT_CLI_APP_ENABLED)
 void otPlatReset(otInstance *aInstance)
 {
     OT_UNUSED_VARIABLE(aInstance);
@@ -324,6 +327,7 @@ void otPlatReset(otInstance *aInstance)
     longjmp(gResetJump, 1);
     assert(false);
 }
+#endif
 
 static otError ProcessNetif(void *aContext, uint8_t aArgsLength, char *aArgs[])
 {
@@ -356,9 +360,10 @@ static const otCliCommand kCommands[] = {
 
 int main(int argc, char *argv[])
 {
-    otInstance *instance;
+    otInstance *instance = NULL;
     int         rval = 0;
     PosixConfig config;
+	pthread_t threadId;
 
 #ifdef __linux__
     // Ensure we terminate this process if the
@@ -366,6 +371,8 @@ int main(int argc, char *argv[])
     prctl(PR_SET_PDEATHSIG, SIGHUP);
 #endif
 
+if(argc > 2)
+{
     OT_SETUP_RESET_JUMP(argv);
 
     ParseArg(argc, argv, &config);
@@ -415,7 +422,15 @@ int main(int argc, char *argv[])
 #if !OPENTHREAD_POSIX_CONFIG_DAEMON_ENABLE
     otAppCliDeinit();
 #endif
+}
+else
+{
 
+    otGetInstance(&instance, &threadId);	
+	syslog(LOG_INFO, "After otThread : gthreadId[%ld]", threadId);
+	otWait(threadId);
+
+}
 exit:
     otSysDeinit();
 
