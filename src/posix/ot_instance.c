@@ -50,6 +50,7 @@
 #include <openthread/tasklet.h>
 #include <openthread/thread.h>
 #include <openthread/platform/radio.h>
+#include <openthread/ot_cmd.h>
 
 #include <common/code_utils.hpp>
 #include <lib/platform/exit_code.h>
@@ -59,6 +60,10 @@
 static otInstance *gInstance = NULL;
 static pthread_t gThreadId;
 pthread_mutex_t gLock;
+bool useOtCmd = 0;
+int gOtCmd = 0;
+bool gProcessCmds = 0;
+const otOperationalDatasetTlvs *gDataset = NULL;
 
 typedef struct PosixConfig
 {
@@ -104,6 +109,48 @@ void otPlatReset(otInstance *aInstance)
     otSysDeinit();
 
     assert(false);
+}
+
+void processCmds()
+{
+
+	if(!gProcessCmds) {
+        //syslog(LOG_INFO, "no ot cmds to process!!!");
+        return;
+	}
+	
+    syslog(LOG_INFO, "processCmds [%d]", gOtCmd);
+    useOtCmd = 0;
+    switch(gOtCmd) {
+    case OT_CMD_IFCONFIG_UP:
+        syslog(LOG_INFO, "OT_CMD_IFCONFIG_UP!!!");
+        otIp6SetEnabled(gInstance, true);
+        break;
+    case OT_CMD_IFCONFIG_DOWN:
+        syslog(LOG_INFO, "OT_CMD_IFCONFIG_DOWN!!!");
+        otIp6SetEnabled(gInstance, false);
+        break;  
+    case OT_CMD_THREAD_START:
+        syslog(LOG_INFO, "OT_CMD_THREAD_START!!!");
+        otThreadSetEnabled(gInstance, true);
+        break;  
+    case OT_CMD_THREAD_STOP:
+        syslog(LOG_INFO, "OT_CMD_THREAD_STOP!!!");
+        otThreadSetEnabled(gInstance, false);
+        break;
+    case OT_CMD_SET_ACTIVE_DATSET:
+        syslog(LOG_INFO, "OT_CMD_SET_ACTIVE_DATSET!!!");
+        otDatasetSetActiveTlvs(gInstance, gDataset);
+        break;
+    default:
+        syslog(LOG_INFO, "invalid ot command!!!");
+		
+	}
+	useOtCmd = 1;
+	gOtCmd = 0;
+	gProcessCmds = 0;
+	syslog(LOG_INFO, "ot cmd  = [%d] processed", gOtCmd);
+
 }
 
 void otCreateInstance()
@@ -159,11 +206,16 @@ void otCreateInstance()
 	
     gInstance = InitInstance(&config);
     syslog(LOG_INFO, "ot instance create success!!!");
-
-	otIp6SetEnabled(gInstance, true);
-	syslog(LOG_INFO, "if config up!!!");
-	otThreadSetEnabled(gInstance, true);
-	syslog(LOG_INFO, "thread start!!!");
+    syslog(LOG_INFO, "OT_CMD_IFCONFIG_UP!!!");
+    otIp6SetEnabled(gInstance, true);
+    syslog(LOG_INFO, "OT_CMD_THREAD_START!!!");
+    otThreadSetEnabled(gInstance, true);
+        
+	useOtCmd = 1;
+	
+	
+	
+	
 
 	pthread_mutex_unlock(&gLock);
 	
@@ -194,6 +246,7 @@ void otCreateInstance()
             perror("select");
             ExitNow(rval = OT_EXIT_FAILURE);
         }
+        processCmds();
 		//syslog(LOG_INFO, "Exit thread mainloop");
     }
 	
@@ -254,6 +307,9 @@ void otDestroyInstance(otInstance **instance, int instanceId)  {
     syslog(LOG_INFO, "otDestroyInstance");
     gThreadId = 0;
     gInstance = NULL;
+   	gOtCmd = 0;
+	gProcessCmds = 0;
+	useOtCmd = 0;
     pthread_mutex_destroy(&gLock);
     otSysDeinit();
 }

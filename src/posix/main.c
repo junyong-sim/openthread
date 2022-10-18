@@ -428,6 +428,20 @@ else
 
     otGetInstance(&instance, &threadId);	
 	syslog(LOG_INFO, "After otThread : gthreadId[%ld]", threadId);
+    syslog(LOG_INFO, "if config up!!!");
+    otIp6SetEnabled(instance, true);
+
+    syslog(LOG_INFO, "thread start!!!");
+    otThreadSetEnabled(instance, true);
+
+    sleep(20);
+
+    syslog(LOG_INFO, "thread stop!!!");
+    otThreadSetEnabled(instance, false);
+
+    syslog(LOG_INFO, "if config down!!!");
+    otIp6SetEnabled(instance, false);
+	
 	otWait(threadId);
 
 }
