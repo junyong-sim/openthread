@@ -57,9 +57,8 @@
 #include <openthread/platform/misc.h>
 
 static otInstance *gInstance = NULL;
-static pthread_t gthreadId;
-
-bool gWait = 1;
+static pthread_t gThreadId;
+pthread_mutex_t gLock;
 
 typedef struct PosixConfig
 {
@@ -109,53 +108,53 @@ void otPlatReset(otInstance *aInstance)
 
 void otCreateInstance()
 {
-
+    pthread_mutex_lock(&gLock);
     PosixConfig config;
-	struct stat st;
-	int i = 0;
-	int rval = 0;
-	char radioDevicesList[][20] = {
-		"/dev/ttyACM0",
-		"/dev/ttyACM1",
-		"/dev/ttyACM2",
-		"/dev/ttyACM3",
-		"/dev/ttyACM4",
-	};
+    struct stat st;
+    int i = 0;
+    int rval = 0;
+    char radioDevicesList[][20] = {
+        "/dev/ttyACM0",
+        "/dev/ttyACM1",
+        "/dev/ttyACM2",
+        "/dev/ttyACM3",
+        "/dev/ttyACM4",
+    };
     char iface[] = "wpan0";
-	char radioUrl[][100] = {
-		"spinel+hdlc+uart:///dev/ttyACM0",
-		"spinel+hdlc+uart:///dev/ttyACM1",
-		"spinel+hdlc+uart:///dev/ttyACM2",
-		"spinel+hdlc+uart:///dev/ttyACM3",
-		"spinel+hdlc+uart:///dev/ttyACM4",
-	};
+    char radioUrl[][100] = {
+        "spinel+hdlc+uart:///dev/ttyACM0",
+        "spinel+hdlc+uart:///dev/ttyACM1",
+        "spinel+hdlc+uart:///dev/ttyACM2",
+        "spinel+hdlc+uart:///dev/ttyACM3",
+        "spinel+hdlc+uart:///dev/ttyACM4",
+    };
 	
     memset(&config, 0, sizeof(config));
     
     syslog(LOG_INFO, "otCreateInstance");
 	
 
-	for(i =0; i< 5; i++) {
-		if(stat(radioDevicesList[i], &st) == 0) {
-			syslog(LOG_INFO, "radio device found [%s]", radioDevicesList[i]);
-			break;
-		} else {
-			syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevicesList[i]);
-		}
-	}
-	if(i == 5) {
-		syslog(LOG_INFO, "Not valid radio device found!!!!");
-		return;
-	}
+    for(i =0; i< 5; i++) {
+        if(stat(radioDevicesList[i], &st) == 0) {
+            syslog(LOG_INFO, "radio device found [%s]", radioDevicesList[i]);
+            break;
+        } else {
+             syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevicesList[i]);
+        }
+    }
+    if(i == 5) {
+    syslog(LOG_INFO, "Not valid radio device found!!!!");
+        return;
+    }
 	
-	config.mLogLevel = OT_LOG_LEVEL_DEBG;
+    config.mLogLevel = OT_LOG_LEVEL_DEBG;
     config.mIsVerbose = true;
     config.mPlatformConfig.mInterfaceName = iface;
     VerifyOrDie(config.mPlatformConfig.mRadioUrlNum < OT_ARRAY_LENGTH(config.mPlatformConfig.mRadioUrls),
         OT_EXIT_INVALID_ARGUMENTS);
     config.mPlatformConfig.mRadioUrls[config.mPlatformConfig.mRadioUrlNum++] = radioUrl[i];
-	config.mPlatformConfig.mRealTimeSignal = 41;
-	config.mPlatformConfig.mSpeedUpFactor = 1;
+    config.mPlatformConfig.mRealTimeSignal = 41;
+    config.mPlatformConfig.mSpeedUpFactor = 1;
 	
 	
     gInstance = InitInstance(&config);
@@ -165,11 +164,12 @@ void otCreateInstance()
 	syslog(LOG_INFO, "if config up!!!");
 	otThreadSetEnabled(gInstance, true);
 	syslog(LOG_INFO, "thread start!!!");
-	gWait = 0;
+
+	pthread_mutex_unlock(&gLock);
 	
 	while (true)
     {
-		syslog(LOG_INFO, "Enter thread mainloop");
+		//syslog(LOG_INFO, "Enter thread mainloop");
 	
         otSysMainloopContext mainloop;
 
@@ -194,7 +194,7 @@ void otCreateInstance()
             perror("select");
             ExitNow(rval = OT_EXIT_FAILURE);
         }
-		syslog(LOG_INFO, "Exit thread mainloop");
+		//syslog(LOG_INFO, "Exit thread mainloop");
     }
 	
 exit:
@@ -219,33 +219,41 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId) {
 	 if(gInstance) {
         syslog(LOG_INFO, "ot instance already initialised!!!");
 		*instance = gInstance;
-		instanceId = gthreadId;
+		instanceId = gThreadId;
+		return;
+    }
+
+    if (pthread_mutex_init(&gLock, NULL) != 0) {
+        syslog(LOG_INFO,  "mutex init has failed");
 		return;
     }
 	
-	syslog(LOG_INFO, "Before otThread");
-	pthread_create(&gthreadId, NULL, otThreadMainLoop, NULL);
+    syslog(LOG_INFO, "Before otThread");
+    pthread_create(&gThreadId, NULL, otThreadMainLoop, NULL);
 	
-	while(gWait) {
-        syslog(LOG_INFO, "Wait in chipstdeviceapp thread!!!");
-	}
-	
-	*instance = gInstance;
-	*instanceId = gthreadId;
-	syslog(LOG_INFO, "After otThread : gthreadId[%ld]", gthreadId);
+    syslog(LOG_INFO, "Wait for 5 Seconds to initialise openthread stack !!!");
+    sleep(5);
 
-	return;
+    pthread_mutex_lock(&gLock);
+	
+    *instance = gInstance;
+    *instanceId = gThreadId;
+    syslog(LOG_INFO, "After otThread : gThreadId[%ld]", gThreadId);
+
+    pthread_mutex_unlock(&gLock);
+
+    return;
 }
 
 void otWait(int instanceId) {
-	syslog(LOG_INFO, "otWait");
-	pthread_join(gthreadId, NULL);
+    syslog(LOG_INFO, "otWait");
+    pthread_join(gThreadId, NULL);
 }
 
 void otDestroyInstance(otInstance **instance, int instanceId)  {
-	syslog(LOG_INFO, "otDestroyInstance");
-	gthreadId = 0;
-	gInstance = NULL;
-	gWait = 1;
-	otSysDeinit();
+    syslog(LOG_INFO, "otDestroyInstance");
+    gThreadId = 0;
+    gInstance = NULL;
+    pthread_mutex_destroy(&gLock);
+    otSysDeinit();
 }
