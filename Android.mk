@@ -51,14 +51,18 @@ OPENTHREAD_PUBLIC_CFLAGS                                         := \
     -DOPENTHREAD_CONFIG_NCP_HDLC_ENABLE=1                           \
     -DOPENTHREAD_CONFIG_PING_SENDER_ENABLE=1                        \
     -DOPENTHREAD_CONFIG_TMF_NETDATA_SERVICE_ENABLE=1                \
-    -DOPENTHREAD_MTD=1                                              \
+    -DOPENTHREAD_FTD=1                                              \
     -DOPENTHREAD_PLATFORM_POSIX=1                                   \
     -DOPENTHREAD_POSIX_CONFIG_RCP_PTY_ENABLE=0                      \
 	-DOPENTHREAD_CONFIG_ECDSA_ENABLE=1                              \
     -DOPENTHREAD_CONFIG_SRP_CLIENT_ENABLE=1                         \
     -DOPENTHREAD_CONFIG_DNS_CLIENT_ENABLE=1                         \
     -DOPENTHREAD_SPINEL_CONFIG_OPENTHREAD_MESSAGE_ENABLE=1          \
+    -DOPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS=3                  \
     -DOPENTHREAD_CONFIG_POSIX_SETTINGS_PATH=\"/data/thread\"        \
+    -DOPENTHREAD_CONFIG_COMMISSIONER_ENABLE=1                       \
+    -DOPENTHREAD_POSIX_CONFIG_DAEMON_SOCKET_BASENAME=\"/dev/socket/openthread-%s\"         \
+    -DOPENTHREAD_POSIX_TUN_DEVICE=\"/dev/tun\"                      \
     $(NULL)
 
 OPENTHREAD_PRIVATE_CFLAGS                                        := \
