@@ -202,7 +202,9 @@ void Notifier::EmitEvents(void)
         if (callback.mHandler != nullptr)
         {
             LogInfo("before EmitEvents 0x%x", events.GetAsFlags());
-            if (0x300932f7 != events.GetAsFlags())
+            if (0x300932f7 != events.GetAsFlags() && \
+                0x200032e6 != events.GetAsFlags() \
+                )
                 callback.mHandler(events.GetAsFlags(), callback.mContext);
             LogInfo("after EmitEvents 0x%x", events.GetAsFlags());
         }
