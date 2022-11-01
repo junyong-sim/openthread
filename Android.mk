@@ -63,6 +63,7 @@ OPENTHREAD_PUBLIC_CFLAGS                                         := \
     -DOPENTHREAD_CONFIG_COMMISSIONER_ENABLE=1                       \
     -DOPENTHREAD_POSIX_CONFIG_DAEMON_SOCKET_BASENAME=\"/dev/socket/openthread-%s\"         \
     -DOPENTHREAD_POSIX_TUN_DEVICE=\"/dev/tun\"                      \
+    -DOPENTHREAD_CONFIG_PLATFORM_NETIF_ENABLE=1                     \
     $(NULL)
 
 OPENTHREAD_PRIVATE_CFLAGS                                        := \
