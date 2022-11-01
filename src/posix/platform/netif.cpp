@@ -606,7 +606,7 @@ template <size_t N> otError AddRoute(const uint8_t (&aAddress)[N], uint8_t aPref
     req.msg.rtm_scope    = RT_SCOPE_UNIVERSE;
     req.msg.rtm_type     = RTN_UNICAST;
     req.msg.rtm_table    = RT_TABLE_MAIN;
-    req.msg.rtm_protocol = RTPROT_BOOT;
+    req.msg.rtm_protocol = RTPROT_BOOT;//RTPROT_KERNEL
     req.msg.rtm_flags    = 0;
 
     AddRtAttr(reinterpret_cast<nlmsghdr *>(&req), sizeof(req), RTA_DST, aAddress, sizeof(aAddress));
@@ -615,6 +615,7 @@ template <size_t N> otError AddRoute(const uint8_t (&aAddress)[N], uint8_t aPref
 
     if (send(sNetlinkFd, &req, sizeof(req), 0) < 0)
     {
+        otLogWarnPlat("AddRoute error %d", errno);
         VerifyOrExit(errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK, error = OT_ERROR_BUSY);
         DieNow(OT_EXIT_ERROR_ERRNO);
     }
@@ -753,7 +754,7 @@ static void UpdateOmrRoutes(otInstance *aInstance)
         else
         {
             sAddedOmrRoutes[sAddedOmrRoutesNum++] = config.mPrefix;
-            otLogInfoPlat("[netif] Successfully added an OMR route %s in kernel: %s", prefixString);
+            otLogInfoPlat("[netif] Successfully added an OMR route %s in kernel", prefixString);
         }
     }
 }
@@ -762,7 +763,7 @@ static void UpdateOmrRoutes(otInstance *aInstance)
 #if OPENTHREAD_POSIX_CONFIG_INSTALL_EXTERNAL_ROUTES_ENABLE
 static otError AddExternalRoute(const otIp6Prefix &aPrefix)
 {
-    otError error;
+    otError error = OT_ERROR_NONE;
 
     VerifyOrExit(sAddedExternalRoutesNum < kMaxExternalRoutesNum, error = OT_ERROR_NO_BUFS);
 
@@ -810,14 +811,16 @@ static void UpdateExternalRoutes(otInstance *aInstance)
     otExternalRouteConfig config;
     char                  prefixString[OT_IP6_PREFIX_STRING_SIZE];
 
+    otLogWarnPlat("[netif] UpdateExternalRoutes %d", sAddedExternalRoutesNum);
     for (int i = 0; i < static_cast<int>(sAddedExternalRoutesNum); ++i)
     {
+
         if (HasExternalRouteInNetData(aInstance, sAddedExternalRoutes[i]))
         {
             continue;
         }
-
         otIp6PrefixToString(&sAddedExternalRoutes[i], prefixString, sizeof(prefixString));
+        otLogWarnPlat("[netif] UpdateExternalRoutes %d - %s", i, prefixString);
         if ((error = DeleteRoute(sAddedExternalRoutes[i])) != OT_ERROR_NONE)
         {
             otLogWarnPlat("[netif] Failed to delete an external route %s in kernel: %s", prefixString,
@@ -832,16 +835,70 @@ static void UpdateExternalRoutes(otInstance *aInstance)
         }
     }
 
+    if (sAddedExternalRoutesNum >= kMaxExternalRoutesNum)
+    {
+        otLogWarnPlat("[netif] No buffer to add more external routes in kernel");
+        return;
+    }
+    // add MeshlocalPrefix
+    const otIp6Address *arloc = otThreadGetRloc(aInstance);
+    otIp6Address rloc;
+    otIp6Prefix prefix = {};
+    otIp6GetPrefix(arloc, 64, &prefix);
+    otIp6PrefixToString(&prefix, prefixString, sizeof(prefixString));
+    otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
+    if ((error = AddExternalRoute(prefix)) != OT_ERROR_NONE)
+    {
+        otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
+                        otThreadErrorToString(error));
+    }
+    else
+    {
+        sAddedExternalRoutes[sAddedExternalRoutesNum++] = prefix;
+        otLogWarnPlat("[netif] Successfully added an external route %s in kernel", prefixString);
+    }
+
+    // add SLAAC
+    otBorderRouterConfig aConfig;
+    while (otNetDataGetNextOnMeshPrefix(aInstance, &iterator, &aConfig) == OT_ERROR_NONE)
+    {
+        otLogWarnPlat("[netif] otNetDataGetNextRoute %x, %x", config.mRloc16 , otThreadGetRloc16(aInstance));
+        if (aConfig.mRloc16 == otThreadGetRloc16(aInstance) || HasAddedExternalRoute(aConfig.mPrefix))
+        {
+            otLogWarnPlat("[netif] otNetDataGetNextRoute continue");
+            continue;
+        }
+        VerifyOrExit(sAddedExternalRoutesNum < kMaxExternalRoutesNum,
+                     otLogWarnPlat("[netif] No buffer to add more external routes in kernel"));
+
+        otIp6PrefixToString(&aConfig.mPrefix, prefixString, sizeof(prefixString));
+        otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
+        if ((error = AddExternalRoute(aConfig.mPrefix)) != OT_ERROR_NONE)
+        {
+            otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
+                          otThreadErrorToString(error));
+        }
+        else
+        {
+            sAddedExternalRoutes[sAddedExternalRoutesNum++] = aConfig.mPrefix;
+            otLogWarnPlat("[netif] Successfully added an external route %s in kernel", prefixString);
+        }
+    }
+
+    // add External router
     while (otNetDataGetNextRoute(aInstance, &iterator, &config) == OT_ERROR_NONE)
     {
+        otLogWarnPlat("[netif] otNetDataGetNextRoute %x, %x", config.mRloc16 , otThreadGetRloc16(aInstance));
         if (config.mRloc16 == otThreadGetRloc16(aInstance) || HasAddedExternalRoute(config.mPrefix))
         {
+            otLogWarnPlat("[netif] otNetDataGetNextRoute continue");
             continue;
         }
         VerifyOrExit(sAddedExternalRoutesNum < kMaxExternalRoutesNum,
                      otLogWarnPlat("[netif] No buffer to add more external routes in kernel"));
 
         otIp6PrefixToString(&config.mPrefix, prefixString, sizeof(prefixString));
+        otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
         if ((error = AddExternalRoute(config.mPrefix)) != OT_ERROR_NONE)
         {
             otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
@@ -880,6 +937,7 @@ static void processAddressChange(const otIp6AddressInfo *aAddressInfo, bool aIsA
 
 void platformNetifStateChange(otInstance *aInstance, otChangedFlags aFlags)
 {
+    otLogInfoPlat("[netif] platformNetifStateChange 0x%04x", aFlags);
     if (OT_CHANGED_THREAD_NETIF_STATE & aFlags)
     {
         UpdateLink(aInstance);
