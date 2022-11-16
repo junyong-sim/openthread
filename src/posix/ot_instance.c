@@ -64,6 +64,7 @@ bool useOtCmd = 0;
 int gOtCmd = 0;
 bool gProcessCmds = 0;
 const otOperationalDatasetTlvs *gDataset = NULL;
+bool gTerminate = 0;
 
 typedef struct PosixConfig
 {
@@ -146,10 +147,11 @@ void processCmds()
         syslog(LOG_INFO, "invalid ot command!!!");
 		
 	}
+
+	syslog(LOG_INFO, "ot cmd  = [%d] processed", gOtCmd);
 	useOtCmd = 1;
 	gOtCmd = 0;
 	gProcessCmds = 0;
-	syslog(LOG_INFO, "ot cmd  = [%d] processed", gOtCmd);
 
 }
 
@@ -160,21 +162,9 @@ void otCreateInstance()
     struct stat st;
     int i = 0;
     int rval = 0;
-    char radioDevicesList[][20] = {
-        "/dev/ttyACM0",
-        "/dev/ttyACM1",
-        "/dev/ttyACM2",
-        "/dev/ttyACM3",
-        "/dev/ttyACM4",
-    };
+    char radioDevice[20];
     char iface[] = "wpan0";
-    char radioUrl[][100] = {
-        "spinel+hdlc+uart:///dev/ttyACM0",
-        "spinel+hdlc+uart:///dev/ttyACM1",
-        "spinel+hdlc+uart:///dev/ttyACM2",
-        "spinel+hdlc+uart:///dev/ttyACM3",
-        "spinel+hdlc+uart:///dev/ttyACM4",
-    };
+    char radioUrl[100];
 	
     memset(&config, 0, sizeof(config));
     
@@ -182,11 +172,12 @@ void otCreateInstance()
 	
 
     for(i =0; i< 5; i++) {
-        if(stat(radioDevicesList[i], &st) == 0) {
-            syslog(LOG_INFO, "radio device found [%s]", radioDevicesList[i]);
+        sprintf(radioDevice, "/dev/ttyACM%d", i);
+        if(stat(radioDevice, &st) == 0) {
+            syslog(LOG_INFO, "radio device found [%s]", radioDevice);
             break;
         } else {
-             syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevicesList[i]);
+             syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevice);
         }
     }
     if(i == 5) {
@@ -194,32 +185,29 @@ void otCreateInstance()
         return;
     }
 	
+    sprintf(radioUrl, "spinel+hdlc+uart:///dev/ttyACM%d", i);
+    syslog(LOG_INFO, "radio Url found [%s]", radioUrl);
     config.mLogLevel = OT_LOG_LEVEL_DEBG;
     config.mIsVerbose = true;
     config.mPlatformConfig.mInterfaceName = iface;
     VerifyOrDie(config.mPlatformConfig.mRadioUrlNum < OT_ARRAY_LENGTH(config.mPlatformConfig.mRadioUrls),
         OT_EXIT_INVALID_ARGUMENTS);
-    config.mPlatformConfig.mRadioUrls[config.mPlatformConfig.mRadioUrlNum++] = radioUrl[i];
+    config.mPlatformConfig.mRadioUrls[config.mPlatformConfig.mRadioUrlNum++] = radioUrl;
     config.mPlatformConfig.mRealTimeSignal = 41;
     config.mPlatformConfig.mSpeedUpFactor = 1;
 	
 	
     gInstance = InitInstance(&config);
     syslog(LOG_INFO, "ot instance create success!!!");
-    syslog(LOG_INFO, "OT_CMD_IFCONFIG_UP!!!");
+    syslog(LOG_INFO, "if config up");
     otIp6SetEnabled(gInstance, true);
-    syslog(LOG_INFO, "OT_CMD_THREAD_START!!!");
+    syslog(LOG_INFO, "thread start");
     otThreadSetEnabled(gInstance, true);
         
-	useOtCmd = 1;
+    useOtCmd = 1;
+    pthread_mutex_unlock(&gLock);
 	
-	
-	
-	
-
-	pthread_mutex_unlock(&gLock);
-	
-	while (true)
+    while (gTerminate == false)
     {
 		//syslog(LOG_INFO, "Enter thread mainloop");
 	
@@ -284,8 +272,8 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId) {
     syslog(LOG_INFO, "Before otThread");
     pthread_create(&gThreadId, NULL, otThreadMainLoop, NULL);
 	
-    syslog(LOG_INFO, "Wait for 5 Seconds to initialise openthread stack !!!");
-    sleep(5);
+    syslog(LOG_INFO, "Wait for 1 Seconds to initialise openthread stack !!!");
+    sleep(1);
 
     pthread_mutex_lock(&gLock);
 	
@@ -298,18 +286,21 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId) {
     return;
 }
 
-void otWait(int instanceId) {
+void otWait() {
     syslog(LOG_INFO, "otWait");
     pthread_join(gThreadId, NULL);
 }
 
-void otDestroyInstance(otInstance **instance, int instanceId)  {
+void otDestroyInstance()  {
     syslog(LOG_INFO, "otDestroyInstance");
+
+    pthread_mutex_destroy(&gLock);
     gThreadId = 0;
     gInstance = NULL;
-   	gOtCmd = 0;
-	gProcessCmds = 0;
-	useOtCmd = 0;
-    pthread_mutex_destroy(&gLock);
-    otSysDeinit();
+    gOtCmd = 0;
+    gProcessCmds = 0;
+    useOtCmd = 0;
+    gDataset = NULL;
+    gTerminate = true;
+
 }
