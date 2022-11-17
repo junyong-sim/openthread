@@ -114,12 +114,11 @@ void otPlatReset(otInstance *aInstance)
 
 void processCmds()
 {
-
-	if(!gProcessCmds) {
+    if(!gProcessCmds) {
         //syslog(LOG_INFO, "no ot cmds to process!!!");
         return;
-	}
-	
+    }
+
     syslog(LOG_INFO, "processCmds [%d]", gOtCmd);
     useOtCmd = 0;
     switch(gOtCmd) {
@@ -145,14 +144,16 @@ void processCmds()
         break;
     default:
         syslog(LOG_INFO, "invalid ot command!!!");
-		
-	}
+    }
 
-	syslog(LOG_INFO, "ot cmd  = [%d] processed", gOtCmd);
-	useOtCmd = 1;
-	gOtCmd = 0;
-	gProcessCmds = 0;
-
+    syslog(LOG_INFO, "ot cmd  = [%d] processed", gOtCmd);
+    if (gOtCmd == OT_CMD_IFCONFIG_DOWN) {
+        syslog(LOG_INFO, "terminated thread main loop");
+        gTerminate = true;
+    }
+    useOtCmd = 1;
+    gOtCmd = 0;
+    gProcessCmds = 0;
 }
 
 void otCreateInstance()
@@ -209,7 +210,7 @@ void otCreateInstance()
 	
     while (gTerminate == false)
     {
-		//syslog(LOG_INFO, "Enter thread mainloop");
+        // syslog(LOG_INFO, "Enter thread mainloop");
 	
         otSysMainloopContext mainloop;
 
@@ -235,11 +236,12 @@ void otCreateInstance()
             ExitNow(rval = OT_EXIT_FAILURE);
         }
         processCmds();
-		//syslog(LOG_INFO, "Exit thread mainloop");
+        // syslog(LOG_INFO, "Exit thread mainloop");
     }
 	
 exit:
-    otSysDeinit();
+
+    syslog(LOG_INFO, "terminate thread mainloop : exit");
     return;
 	
 }
@@ -260,7 +262,7 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId) {
 	 if(gInstance) {
         syslog(LOG_INFO, "ot instance already initialised!!!");
 		*instance = gInstance;
-		instanceId = gThreadId;
+		instanceId = &gThreadId;
 		return;
     }
 
@@ -294,13 +296,18 @@ void otWait() {
 void otDestroyInstance()  {
     syslog(LOG_INFO, "otDestroyInstance");
 
+    otSysDeinit();
+
+    otWait();
+
+    syslog(LOG_INFO, "otDestroyInstance : completed to terminate thread");
+
     pthread_mutex_destroy(&gLock);
+    gTerminate = false;
     gThreadId = 0;
     gInstance = NULL;
     gOtCmd = 0;
     gProcessCmds = 0;
     useOtCmd = 0;
     gDataset = NULL;
-    gTerminate = true;
-
 }
