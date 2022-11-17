@@ -147,10 +147,6 @@ void processCmds()
     }
 
     syslog(LOG_INFO, "ot cmd  = [%d] processed", gOtCmd);
-    if (gOtCmd == OT_CMD_IFCONFIG_DOWN) {
-        syslog(LOG_INFO, "terminated thread main loop");
-        gTerminate = true;
-    }
     useOtCmd = 1;
     gOtCmd = 0;
     gProcessCmds = 0;
@@ -240,7 +236,10 @@ void otCreateInstance()
     }
 	
 exit:
-
+    otSysDeinit();
+    gThreadId = 0;
+    gInstance = NULL;
+    gTerminate = false;
     syslog(LOG_INFO, "terminate thread mainloop : exit");
     return;
 	
@@ -296,18 +295,10 @@ void otWait() {
 void otDestroyInstance()  {
     syslog(LOG_INFO, "otDestroyInstance");
 
-    otSysDeinit();
-
-    otWait();
-
-    syslog(LOG_INFO, "otDestroyInstance : completed to terminate thread");
-
     pthread_mutex_destroy(&gLock);
-    gTerminate = false;
-    gThreadId = 0;
-    gInstance = NULL;
     gOtCmd = 0;
     gProcessCmds = 0;
     useOtCmd = 0;
     gDataset = NULL;
+    gTerminate = true;
 }
