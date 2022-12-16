@@ -842,7 +842,6 @@ static void UpdateExternalRoutes(otInstance *aInstance)
     }
     // add MeshlocalPrefix
     const otIp6Address *arloc = otThreadGetRloc(aInstance);
-    otIp6Address rloc;
     otIp6Prefix prefix = {};
     otIp6GetPrefix(arloc, 64, &prefix);
     otIp6PrefixToString(&prefix, prefixString, sizeof(prefixString));

@@ -44,11 +44,11 @@ set(src_tcplp
 )
 
 
-string(REPLACE "-Wsign-compare" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REPLACE "-Wsign-compare" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 
-string(REPLACE "-Wconversion" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REPLACE "-Wconversion" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 
-string(REPLACE "-Wunused-parameter" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REPLACE "-Wunused-parameter" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 
 if(OT_FTD)
     add_library(tcplp-ftd STATIC ${src_tcplp})

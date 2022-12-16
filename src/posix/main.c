@@ -71,6 +71,7 @@
 #include "lib/platform/reset_util.h"
 
 extern void otGetInstance(otInstance **instance, pthread_t *instanceId);
+extern void otDestroyInstance();
 
 /**
  * This function initializes NCP app.

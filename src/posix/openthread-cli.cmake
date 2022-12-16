@@ -26,17 +26,17 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_executable(ot-daemon
-    main.c
+add_library(openthread-cli SHARED
+    ot_instance.c
 )
 
-target_include_directories(ot-daemon PRIVATE ${COMMON_INCLUDES})
+target_include_directories(openthread-cli PRIVATE ${COMMON_INCLUDES})
 
-target_compile_options(ot-daemon PRIVATE
+target_compile_options(openthread-cli PRIVATE
     ${OT_CFLAGS}
 )
 
-target_link_libraries(ot-daemon PRIVATE
+target_link_libraries(openthread-cli PRIVATE
     openthread-cli-ftd
     openthread-posix
     openthread-ftd
@@ -47,31 +47,4 @@ target_link_libraries(ot-daemon PRIVATE
     ot-posix-config
     ot-config-ftd
     ot-config
-    openthread-cli
 )
-
-add_executable(ot-ctl
-    client.cpp
-)
-
-if (READLINE)
-target_compile_definitions(ot-ctl PRIVATE
-    $<$<BOOL:${READLINE}>:HAVE_LIB$<UPPER_CASE:${OT_READLINE}>=1>)
-endif()
-
-target_compile_options(ot-ctl PRIVATE
-    ${OT_CFLAGS}
-)
-
-target_link_libraries(ot-ctl PRIVATE
-    ${READLINE_LINK_LIBRARIES}
-    ot-posix-config
-    ot-config
-)
-
-target_include_directories(ot-ctl PRIVATE ${COMMON_INCLUDES})
-
-install(TARGETS ot-daemon
-    DESTINATION sbin)
-install(TARGETS ot-ctl
-    DESTINATION bin)

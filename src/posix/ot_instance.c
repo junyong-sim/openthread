@@ -158,7 +158,6 @@ void otCreateInstance()
     PosixConfig config;
     struct stat st;
     int i = 0;
-    int rval = 0;
     char radioDevice[20];
     char iface[] = "wpan0";
     char radioUrl[100];
@@ -229,7 +228,7 @@ void otCreateInstance()
         else if (errno != EINTR)
         {
             perror("select");
-            ExitNow(rval = OT_EXIT_FAILURE);
+            ExitNow();
         }
         processCmds();
         // syslog(LOG_INFO, "Exit thread mainloop");
@@ -245,7 +244,7 @@ exit:
 	
 }
 
-void *otThreadMainLoop(void *vargp)
+void *otThreadMainLoop()
 {
 	syslog(LOG_INFO, "Inside otThreadMainLoop");
 	

@@ -154,6 +154,7 @@ target_compile_definitions(openthread-posix
 
 target_compile_options(openthread-posix PRIVATE
     ${OT_CFLAGS}
+	"-Wno-overflow"
 )
 
 target_include_directories(openthread-posix PRIVATE

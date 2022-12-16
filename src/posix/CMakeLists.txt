@@ -83,6 +83,10 @@ elseif(OT_APP_CLI)
     endif()
 endif()
 
+if(OT_CLI_LIB)
+    include(openthread-cli.cmake)
+endif()
+
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(CPACK_GENERATOR "DEB")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "OpenThread Authors (https://github.com/openthread/openthread)")
