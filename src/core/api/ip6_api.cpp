@@ -52,6 +52,7 @@ using namespace ot;
 otError otIp6SetEnabled(otInstance *aInstance, bool aEnabled)
 {
     Error     error    = kErrorNone;
+#ifdef OT_CLI_LIB
     if(useOtCmd)
     {
         if(aEnabled)
@@ -74,6 +75,7 @@ otError otIp6SetEnabled(otInstance *aInstance, bool aEnabled)
         }
     }
     else
+#endif
     {
         Instance &instance = AsCoreType(aInstance);
 

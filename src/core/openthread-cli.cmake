@@ -27,24 +27,35 @@
 #
 
 add_library(openthread-cli SHARED
-    ot_instance.c
+    ${PROJECT_SOURCE_DIR}/src/posix/ot_instance.c
 )
 
-target_include_directories(openthread-cli PRIVATE ${COMMON_INCLUDES})
+target_compile_definitions(openthread-cli PRIVATE
+    OPENTHREAD_FTD=1
+	OT_CLI_LIB=1
+)
 
 target_compile_options(openthread-cli PRIVATE
     ${OT_CFLAGS}
 )
 
-target_link_libraries(openthread-cli PRIVATE
-    openthread-cli-ftd
-    openthread-posix
-    openthread-ftd
-    openthread-posix
-    openthread-hdlc
-    openthread-spinel-rcp
-    ${OT_MBEDTLS}
-    ot-posix-config
-    ot-config-ftd
-    ot-config
+target_include_directories(openthread-cli PUBLIC ${OT_PUBLIC_INCLUDES} PRIVATE ${COMMON_INCLUDES})
+
+target_sources(openthread-cli PRIVATE ${COMMON_SOURCES})
+
+target_link_libraries(openthread-cli
+    PRIVATE
+	    openthread-posix
+	    openthread-hdlc
+        openthread-spinel-rcp
+        ${OT_MBEDTLS}
+        ot-config-ftd
+        ot-config
 )
+
+if(NOT OT_EXCLUDE_TCPLP_LIB)
+    target_link_libraries(openthread-cli PRIVATE tcplp-ftd)
+endif()
+
+install(TARGETS openthread-cli
+    DESTINATION /usr/lib)

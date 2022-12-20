@@ -71,6 +71,7 @@ otError otDatasetSetActive(otInstance *aInstance, const otOperationalDataset *aD
 otError otDatasetSetActiveTlvs(otInstance *aInstance, const otOperationalDatasetTlvs *aDataset)
 {
     AssertPointerIsNotNull(aDataset);
+#ifdef OT_CLI_LIB
     if(useOtCmd)
     {
         gDataset = aDataset;
@@ -87,6 +88,7 @@ otError otDatasetSetActiveTlvs(otInstance *aInstance, const otOperationalDataset
         return kErrorNone;;
     }
     else
+#endif
     {
         return AsCoreType(aInstance).Get<MeshCoP::ActiveDatasetManager>().Save(*aDataset);
     }

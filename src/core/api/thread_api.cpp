@@ -394,6 +394,7 @@ otError otThreadSearchForBetterParent(otInstance *aInstance)
 otError otThreadSetEnabled(otInstance *aInstance, bool aEnabled)
 {
     Error error = kErrorNone;
+#ifdef OT_CLI_LIB
     if(useOtCmd)
     {
         if(aEnabled)
@@ -415,6 +416,7 @@ otError otThreadSetEnabled(otInstance *aInstance, bool aEnabled)
         }
     }
     else
+#endif
     {
 
         if (aEnabled)

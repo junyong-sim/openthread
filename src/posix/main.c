@@ -70,8 +70,10 @@
 
 #include "lib/platform/reset_util.h"
 
+#ifdef OT_CLI_LIB
 extern void otGetInstance(otInstance **instance, pthread_t *instanceId);
 extern void otDestroyInstance();
+#endif
 
 /**
  * This function initializes NCP app.
@@ -316,7 +318,7 @@ void otTaskletsSignalPending(otInstance *aInstance)
     OT_UNUSED_VARIABLE(aInstance);
 }
 
-#if defined(OT_CLI_APP_ENABLED)
+#if !defined(OT_CLI_LIB)
 void otPlatReset(otInstance *aInstance)
 {
     OT_UNUSED_VARIABLE(aInstance);
@@ -364,7 +366,6 @@ int main(int argc, char *argv[])
     otInstance *instance = NULL;
     int         rval = 0;
     PosixConfig config;
-	pthread_t threadId;
 
 #ifdef __linux__
     // Ensure we terminate this process if the
@@ -372,8 +373,11 @@ int main(int argc, char *argv[])
     prctl(PR_SET_PDEATHSIG, SIGHUP);
 #endif
 
+#ifdef OT_CLI_LIB
+	pthread_t threadId;
 if(argc > 2)
 {
+#endif
     OT_SETUP_RESET_JUMP(argv);
 
     ParseArg(argc, argv, &config);
@@ -423,6 +427,7 @@ if(argc > 2)
 #if !OPENTHREAD_POSIX_CONFIG_DAEMON_ENABLE
     otAppCliDeinit();
 #endif
+#ifdef OT_CLI_LIB
 }
 else
 {
@@ -436,6 +441,7 @@ else
 
 
 }
+#endif
 exit:
     otSysDeinit();
 

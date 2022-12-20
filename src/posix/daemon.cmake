@@ -47,7 +47,6 @@ target_link_libraries(ot-daemon PRIVATE
     ot-posix-config
     ot-config-ftd
     ot-config
-    openthread-cli
 )
 
 add_executable(ot-ctl
