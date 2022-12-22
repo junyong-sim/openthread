@@ -437,7 +437,7 @@ else
 
     sleep(10);
 
-    otDestroyInstance();
+    otWait();
 
 
 }
