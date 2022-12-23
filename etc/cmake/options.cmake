@@ -183,3 +183,6 @@ if(OT_POSIX_SETTINGS_PATH)
     target_compile_definitions(ot-config INTERFACE "OPENTHREAD_CONFIG_POSIX_SETTINGS_PATH=${OT_POSIX_SETTINGS_PATH}")
 endif()
 
+if (OT_PLATFORM_NETIF)
+    target_compile_definitions(ot-config INTERFACE "OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS=3")
+endif()
