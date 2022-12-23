@@ -29,9 +29,17 @@
 #include "openthread-posix-config.h"
 #include "platform-posix.h"
 
+// #define OPENTHREAD_DISABLE_SYSLOG
+
 #include <assert.h>
 #include <stdarg.h>
 #include <syslog.h>
+
+#ifdef OPENTHREAD_DISABLE_SYSLOG
+#include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 #include <openthread/platform/logging.h>
 
@@ -69,7 +77,20 @@ OT_TOOL_WEAK void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const 
     }
 
     va_start(args, aFormat);
+#ifdef OPENTHREAD_DISABLE_SYSLOG
+    const uint16_t kBufferSize = 4096;
+    char           buffer[kBufferSize];
+    OT_UNUSED_VARIABLE(aLogLevel);
+    if ((vsnprintf(buffer, sizeof(buffer), aFormat, args) > 0)) {
+        time_t rawtime;
+        time(&rawtime);
+        char *r_time = ctime(&rawtime);
+        r_time[strlen(r_time) - 1] = 0;
+        printf("%s %s[%d]: %s\n",r_time, "libopenthread-cli", getpid(), buffer);
+    }
+#else
     vsyslog(aLogLevel, aFormat, args);
+#endif
     va_end(args);
 }
 #endif // OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_PLATFORM_DEFINED
