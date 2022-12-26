@@ -152,37 +152,85 @@ void processCmds()
     gProcessCmds = 0;
 }
 
-void otCreateInstance()
-{
-    pthread_mutex_lock(&gLock);
-    PosixConfig config;
+static int getRadioURL(int intefaceIdx) {
     struct stat st;
     int i = 0;
-    char radioDevice[20];
-    char iface[] = "wpan0";
-    char radioUrl[100];
-	
-    memset(&config, 0, sizeof(config));
-    
-    syslog(LOG_INFO, "otCreateInstance");
-	
+    char radioDevice[20] = { 0, };
 
-    for(i =0; i< 5; i++) {
+    /* For multiple devices and intefaces, 
+     * we will align the index of them.
+     */
+    sprintf(radioDevice, "/dev/ttyACM%d", intefaceIdx);
+    if(stat(radioDevice, &st) == 0) {
+        syslog(LOG_INFO, "radio device found [%s]", radioDevice);
+        return intefaceIdx;
+    }
+
+    /* original routine */
+    for(i = 0; i < 5; i++) {
         sprintf(radioDevice, "/dev/ttyACM%d", i);
         if(stat(radioDevice, &st) == 0) {
             syslog(LOG_INFO, "radio device found [%s]", radioDevice);
             break;
         } else {
-             syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevice);
+            syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevice);
         }
     }
     if(i == 5) {
-    syslog(LOG_INFO, "Not valid radio device found!!!!");
+        syslog(LOG_INFO, "Not valid radio device found!!!!");
+        return -1;
+    }
+
+    return i;
+}
+
+static int getInterface() {
+    struct stat st;
+    int i = 0;
+    char wpanInterface[50] = { 0, };
+
+    for(i = 0; i < 5; i++) {
+        sprintf(wpanInterface, "/sys/class/net/wpan%d", i);
+        if(stat(wpanInterface, &st) == 0) {
+            syslog(LOG_INFO, "Interface is already used [%s]", wpanInterface);
+            continue;
+        } else {
+            syslog(LOG_INFO, "find empty interface [%s]", wpanInterface);
+            break;
+        }
+    }
+    if(i == 5) {
+        syslog(LOG_INFO, "Not valid radio device found!!!!");
+        return -1;
+    }
+
+    return i;
+}
+
+void otCreateInstance()
+{
+    pthread_mutex_lock(&gLock);
+    PosixConfig config;
+    int radioUrlIdx = 0;
+    int interfaceIdx = 0;
+    char radioUrl[100] = { 0, };
+    char iface[100] = { 0, };
+
+    memset(&config, 0, sizeof(config));
+
+    syslog(LOG_INFO, "otCreateInstance");
+	
+    interfaceIdx = getInterface();
+    sprintf(iface, "wpan%d", interfaceIdx);
+    syslog(LOG_INFO, "interface found [%s]", iface);
+
+    radioUrlIdx = getRadioURL(interfaceIdx);
+    if (radioUrlIdx == -1) {
         return;
     }
-	
-    sprintf(radioUrl, "spinel+hdlc+uart:///dev/ttyACM%d", i);
+    sprintf(radioUrl, "spinel+hdlc+uart:///dev/ttyACM%d", radioUrlIdx);
     syslog(LOG_INFO, "radio Url found [%s]", radioUrl);
+
     config.mLogLevel = OT_LOG_LEVEL_DEBG;
     config.mIsVerbose = true;
     config.mPlatformConfig.mInterfaceName = iface;
