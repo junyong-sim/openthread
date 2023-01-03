@@ -36,8 +36,8 @@
 #include <syslog.h>
 
 #ifdef OPENTHREAD_DISABLE_SYSLOG
-#include <time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 #endif
 
@@ -81,12 +81,13 @@ OT_TOOL_WEAK void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const 
     const uint16_t kBufferSize = 4096;
     char           buffer[kBufferSize];
     OT_UNUSED_VARIABLE(aLogLevel);
-    if ((vsnprintf(buffer, sizeof(buffer), aFormat, args) > 0)) {
+    if ((vsnprintf(buffer, sizeof(buffer), aFormat, args) > 0))
+    {
         time_t rawtime;
         time(&rawtime);
-        char *r_time = ctime(&rawtime);
+        char *r_time               = ctime(&rawtime);
         r_time[strlen(r_time) - 1] = 0;
-        printf("%s %s[%d]: %s\n",r_time, "libopenthread-cli", getpid(), buffer);
+        printf("%s %s[%d]: %s\n", r_time, "libopenthread-cli", getpid(), buffer);
     }
 #else
     vsyslog(aLogLevel, aFormat, args);

@@ -57,6 +57,8 @@
 #include <openthread/openthread-system.h>
 #include <openthread/platform/misc.h>
 
+#define MULTIPLE_INSTANCE_MAX 10
+
 static otInstance *gInstance = NULL;
 static pthread_t gThreadId;
 pthread_mutex_t gLock;
@@ -167,7 +169,7 @@ static int getRadioURL(int intefaceIdx) {
     }
 
     /* original routine */
-    for(i = 0; i < 5; i++) {
+    for(i = 0; i < MULTIPLE_INSTANCE_MAX; i++) {
         sprintf(radioDevice, "/dev/ttyACM%d", i);
         if(stat(radioDevice, &st) == 0) {
             syslog(LOG_INFO, "radio device found [%s]", radioDevice);
@@ -176,7 +178,7 @@ static int getRadioURL(int intefaceIdx) {
             syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevice);
         }
     }
-    if(i == 5) {
+    if(i == MULTIPLE_INSTANCE_MAX) {
         syslog(LOG_INFO, "Not valid radio device found!!!!");
         return -1;
     }
@@ -189,7 +191,7 @@ static int getInterface() {
     int i = 0;
     char wpanInterface[50] = { 0, };
 
-    for(i = 0; i < 5; i++) {
+    for(i = 0; i < MULTIPLE_INSTANCE_MAX; i++) {
         sprintf(wpanInterface, "/sys/class/net/wpan%d", i);
         if(stat(wpanInterface, &st) == 0) {
             syslog(LOG_INFO, "Interface is already used [%s]", wpanInterface);
@@ -199,7 +201,7 @@ static int getInterface() {
             break;
         }
     }
-    if(i == 5) {
+    if(i == MULTIPLE_INSTANCE_MAX) {
         syslog(LOG_INFO, "Not valid radio device found!!!!");
         return -1;
     }
