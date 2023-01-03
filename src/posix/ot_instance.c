@@ -58,6 +58,7 @@
 #include <openthread/platform/misc.h>
 
 #define MULTIPLE_INSTANCE_MAX 10
+#define MAXCOMPORTLEN 9
 
 static otInstance *gInstance = NULL;
 static pthread_t gThreadId;
@@ -67,6 +68,12 @@ int gOtCmd = 0;
 bool gProcessCmds = 0;
 const otOperationalDatasetTlvs *gDataset = NULL;
 bool gTerminate = 0;
+
+typedef struct Param
+{
+    char comPort[MAXCOMPORTLEN];
+    uint16_t debugLevel;
+} Param;
 
 typedef struct PosixConfig
 {
@@ -154,36 +161,19 @@ void processCmds()
     gProcessCmds = 0;
 }
 
-static int getRadioURL(int intefaceIdx) {
+static bool getRadioURL(char *comPort) {
     struct stat st;
-    int i = 0;
     char radioDevice[20] = { 0, };
 
     /* For multiple devices and intefaces, 
      * we will align the index of them.
      */
-    sprintf(radioDevice, "/dev/ttyACM%d", intefaceIdx);
+    sprintf(radioDevice, "/dev/%s", comPort);
     if(stat(radioDevice, &st) == 0) {
         syslog(LOG_INFO, "radio device found [%s]", radioDevice);
-        return intefaceIdx;
+        return true;
     }
-
-    /* original routine */
-    for(i = 0; i < MULTIPLE_INSTANCE_MAX; i++) {
-        sprintf(radioDevice, "/dev/ttyACM%d", i);
-        if(stat(radioDevice, &st) == 0) {
-            syslog(LOG_INFO, "radio device found [%s]", radioDevice);
-            break;
-        } else {
-            syslog(LOG_INFO, "Not valid radio device [%s]....Try another", radioDevice);
-        }
-    }
-    if(i == MULTIPLE_INSTANCE_MAX) {
-        syslog(LOG_INFO, "Not valid radio device found!!!!");
-        return -1;
-    }
-
-    return i;
+    return false;
 }
 
 static int getInterface() {
@@ -209,14 +199,14 @@ static int getInterface() {
     return i;
 }
 
-void otCreateInstance()
+void otCreateInstance(void *arg)
 {
     pthread_mutex_lock(&gLock);
     PosixConfig config;
-    int radioUrlIdx = 0;
     int interfaceIdx = 0;
     char radioUrl[100] = { 0, };
     char iface[100] = { 0, };
+    Param *initParam = (Param*)arg;
 
     memset(&config, 0, sizeof(config));
 
@@ -226,14 +216,14 @@ void otCreateInstance()
     sprintf(iface, "wpan%d", interfaceIdx);
     syslog(LOG_INFO, "interface found [%s]", iface);
 
-    radioUrlIdx = getRadioURL(interfaceIdx);
-    if (radioUrlIdx == -1) {
+    if (!getRadioURL(initParam->comPort)) {
         return;
     }
-    sprintf(radioUrl, "spinel+hdlc+uart:///dev/ttyACM%d", radioUrlIdx);
+    sprintf(radioUrl, "spinel+hdlc+uart:///dev/%s", initParam->comPort);
     syslog(LOG_INFO, "radio Url found [%s]", radioUrl);
+    syslog(LOG_INFO, "debug level [%d]", initParam->debugLevel);
 
-    config.mLogLevel = OT_LOG_LEVEL_DEBG;
+    config.mLogLevel = initParam->debugLevel;
     config.mIsVerbose = true;
     config.mPlatformConfig.mInterfaceName = iface;
     VerifyOrDie(config.mPlatformConfig.mRadioUrlNum < OT_ARRAY_LENGTH(config.mPlatformConfig.mRadioUrls),
@@ -294,17 +284,20 @@ exit:
 	
 }
 
-void *otThreadMainLoop()
+void *otThreadMainLoop(void *arg)
 {
 	syslog(LOG_INFO, "Inside otThreadMainLoop");
 	
-	otCreateInstance();
+	otCreateInstance(arg);
 	
 	return NULL;
 }
 
-void otGetInstance(otInstance **instance, pthread_t *instanceId) {
-	
+void otGetInstance(otInstance **instance, pthread_t *instanceId, const char * comPort, uint16_t debug) {
+	Param *initParam = (Param*)malloc(sizeof(Param));
+    strcpy(initParam->comPort, comPort);
+    initParam->debugLevel = debug;
+
 	syslog(LOG_INFO, "otGetInstance");
 	
 	 if(gInstance) {
@@ -320,7 +313,7 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId) {
     }
 	
     syslog(LOG_INFO, "Before otThread");
-    pthread_create(&gThreadId, NULL, otThreadMainLoop, NULL);
+    pthread_create(&gThreadId, NULL, otThreadMainLoop, initParam);
 	
     syslog(LOG_INFO, "Wait for 1 Seconds to initialise openthread stack !!!");
     sleep(1);
