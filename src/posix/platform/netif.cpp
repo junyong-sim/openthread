@@ -155,9 +155,8 @@ unsigned int gNetifIndex = 0;
 char         gNetifName[IFNAMSIZ];
 otIp4Cidr    gNat64Cidr;
 
-
-int getifaddrs(struct ifaddrs** result);
-void freeifaddrs(struct ifaddrs* addrs);
+int  getifaddrs(struct ifaddrs **result);
+void freeifaddrs(struct ifaddrs *addrs);
 
 const char *otSysGetThreadNetifName(void)
 {
@@ -168,6 +167,8 @@ unsigned int otSysGetThreadNetifIndex(void)
 {
     return gNetifIndex;
 }
+
+#define OPENTHREAD_CONFIG_PLATFORM_NETIF_ENABLE 1
 
 #if OPENTHREAD_CONFIG_PLATFORM_NETIF_ENABLE
 #if OPENTHREAD_POSIX_CONFIG_FIREWALL_ENABLE
@@ -606,7 +607,7 @@ template <size_t N> otError AddRoute(const uint8_t (&aAddress)[N], uint8_t aPref
     req.msg.rtm_scope    = RT_SCOPE_UNIVERSE;
     req.msg.rtm_type     = RTN_UNICAST;
     req.msg.rtm_table    = RT_TABLE_MAIN;
-    req.msg.rtm_protocol = RTPROT_BOOT;//RTPROT_KERNEL
+    req.msg.rtm_protocol = RTPROT_BOOT; // RTPROT_KERNEL
     req.msg.rtm_flags    = 0;
 
     AddRtAttr(reinterpret_cast<nlmsghdr *>(&req), sizeof(req), RTA_DST, aAddress, sizeof(aAddress));
@@ -804,6 +805,72 @@ bool HasAddedExternalRoute(const otIp6Prefix &aExternalRoute)
     return found;
 }
 
+static void __addMeshLocalRoutes(otInstance *aInstance)
+{
+    otError             error;
+    char                prefixString[OT_IP6_PREFIX_STRING_SIZE];
+    const otIp6Address *arloc  = otThreadGetRloc(aInstance);
+    otIp6Prefix         prefix = {};
+
+    otLogWarnPlat("[netif] __addMeshLocalRoutes");
+
+    otIp6GetPrefix(arloc, 64, &prefix);
+    otIp6PrefixToString(&prefix, prefixString, sizeof(prefixString));
+    otLogWarnPlat("[netif] otIp6PrefixToString %s", prefixString);
+
+    // add MeshlocalPrefix
+    if ((error = AddExternalRoute(prefix)) != OT_ERROR_NONE)
+    {
+        otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
+                      otThreadErrorToString(error));
+    }
+    else
+    {
+        sAddedExternalRoutes[sAddedExternalRoutesNum++] = prefix;
+        otLogWarnPlat("[netif] Successfully added an external route %s in kernel", prefixString);
+    }
+}
+
+static void __addMeshPrefixRoutes(otInstance *aInstance)
+{
+    otError               error;
+    otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
+    char                  prefixString[OT_IP6_PREFIX_STRING_SIZE];
+    otBorderRouterConfig  config;
+
+    otLogWarnPlat("[netif] __addMeshPrefixRoutes");
+
+    // add SLAAC
+    while (otNetDataGetNextOnMeshPrefix(aInstance, &iterator, &config) == OT_ERROR_NONE)
+    {
+        otLogWarnPlat("[netif] otNetDataGetNextOnMeshPrefix %x, %x", config.mRloc16, otThreadGetRloc16(aInstance));
+        otIp6PrefixToString(&config.mPrefix, prefixString, sizeof(prefixString));
+        otLogWarnPlat("[netif] otNetDataGetNextOnMeshPrefix otIp6PrefixToString %s", prefixString);
+        if (config.mRloc16 == otThreadGetRloc16(aInstance) || HasAddedExternalRoute(config.mPrefix))
+        {
+            otLogWarnPlat("[netif] otNetDataGetNextOnMeshPrefix continue");
+            continue;
+        }
+        VerifyOrExit(sAddedExternalRoutesNum < kMaxExternalRoutesNum,
+                     otLogWarnPlat("[netif] No buffer to add more external routes in kernel"));
+
+        // otIp6PrefixToString(&config.mPrefix, prefixString, sizeof(prefixString));
+        // otLogWarnPlat("[netif] otNetDataGetNextOnMeshPrefix otIp6PrefixToString %s", prefixString);
+        if ((error = AddExternalRoute(config.mPrefix)) != OT_ERROR_NONE)
+        {
+            otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
+                          otThreadErrorToString(error));
+        }
+        else
+        {
+            sAddedExternalRoutes[sAddedExternalRoutesNum++] = config.mPrefix;
+            otLogWarnPlat("[netif] Successfully added an external route %s in kernel", prefixString);
+        }
+    }
+exit:
+    return;
+}
+
 static void UpdateExternalRoutes(otInstance *aInstance)
 {
     otError               error;
@@ -814,7 +881,6 @@ static void UpdateExternalRoutes(otInstance *aInstance)
     otLogWarnPlat("[netif] UpdateExternalRoutes %d", sAddedExternalRoutesNum);
     for (int i = 0; i < static_cast<int>(sAddedExternalRoutesNum); ++i)
     {
-
         if (HasExternalRouteInNetData(aInstance, sAddedExternalRoutes[i]))
         {
             continue;
@@ -840,54 +906,18 @@ static void UpdateExternalRoutes(otInstance *aInstance)
         otLogWarnPlat("[netif] No buffer to add more external routes in kernel");
         return;
     }
-    // add MeshlocalPrefix
-    const otIp6Address *arloc = otThreadGetRloc(aInstance);
-    otIp6Prefix prefix = {};
-    otIp6GetPrefix(arloc, 64, &prefix);
-    otIp6PrefixToString(&prefix, prefixString, sizeof(prefixString));
-    otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
-    if ((error = AddExternalRoute(prefix)) != OT_ERROR_NONE)
-    {
-        otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
-                        otThreadErrorToString(error));
-    }
-    else
-    {
-        sAddedExternalRoutes[sAddedExternalRoutesNum++] = prefix;
-        otLogWarnPlat("[netif] Successfully added an external route %s in kernel", prefixString);
-    }
 
-    // add SLAAC
-    otBorderRouterConfig aConfig;
-    while (otNetDataGetNextOnMeshPrefix(aInstance, &iterator, &aConfig) == OT_ERROR_NONE)
-    {
-        otLogWarnPlat("[netif] otNetDataGetNextRoute %x, %x", config.mRloc16 , otThreadGetRloc16(aInstance));
-        if (aConfig.mRloc16 == otThreadGetRloc16(aInstance) || HasAddedExternalRoute(aConfig.mPrefix))
-        {
-            otLogWarnPlat("[netif] otNetDataGetNextRoute continue");
-            continue;
-        }
-        VerifyOrExit(sAddedExternalRoutesNum < kMaxExternalRoutesNum,
-                     otLogWarnPlat("[netif] No buffer to add more external routes in kernel"));
+    __addMeshLocalRoutes(aInstance);
+    __addMeshPrefixRoutes(aInstance);
 
-        otIp6PrefixToString(&aConfig.mPrefix, prefixString, sizeof(prefixString));
-        otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
-        if ((error = AddExternalRoute(aConfig.mPrefix)) != OT_ERROR_NONE)
-        {
-            otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
-                          otThreadErrorToString(error));
-        }
-        else
-        {
-            sAddedExternalRoutes[sAddedExternalRoutesNum++] = aConfig.mPrefix;
-            otLogWarnPlat("[netif] Successfully added an external route %s in kernel", prefixString);
-        }
-    }
+    otLogWarnPlat("[netif] start to get otExternalRouteConfig");
 
-    // add External router
+    // add External route
     while (otNetDataGetNextRoute(aInstance, &iterator, &config) == OT_ERROR_NONE)
     {
-        otLogWarnPlat("[netif] otNetDataGetNextRoute %x, %x", config.mRloc16 , otThreadGetRloc16(aInstance));
+        otLogWarnPlat("[netif] otNetDataGetNextRoute %x, %x", config.mRloc16, otThreadGetRloc16(aInstance));
+        otIp6PrefixToString(&config.mPrefix, prefixString, sizeof(prefixString));
+        otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
         if (config.mRloc16 == otThreadGetRloc16(aInstance) || HasAddedExternalRoute(config.mPrefix))
         {
             otLogWarnPlat("[netif] otNetDataGetNextRoute continue");
@@ -895,9 +925,8 @@ static void UpdateExternalRoutes(otInstance *aInstance)
         }
         VerifyOrExit(sAddedExternalRoutesNum < kMaxExternalRoutesNum,
                      otLogWarnPlat("[netif] No buffer to add more external routes in kernel"));
-
-        otIp6PrefixToString(&config.mPrefix, prefixString, sizeof(prefixString));
-        otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
+        // otIp6PrefixToString(&config.mPrefix, prefixString, sizeof(prefixString));
+        // otLogWarnPlat("[netif] otNetDataGetNextRoute otIp6PrefixToString %s", prefixString);
         if ((error = AddExternalRoute(config.mPrefix)) != OT_ERROR_NONE)
         {
             otLogWarnPlat("[netif] Failed to add an external route %s in kernel: %s", prefixString,
@@ -1081,10 +1110,10 @@ static void logAddrEvent(bool isAdd, const ot::Ip6::Address &aAddress, otError e
     {
         otLogInfoPlat("[netif] %s [%s] %s%s", isAdd ? "ADD" : "DEL", aAddress.IsMulticast() ? "M" : "U",
                       aAddress.ToString().AsCString(),
-                      error == OT_ERROR_ALREADY
-                          ? " (already subscribed, ignored)"
-                          : error == OT_ERROR_REJECTED ? " (rejected)"
-                                                       : error == OT_ERROR_NOT_FOUND ? " (not found, ignored)" : "");
+                      error == OT_ERROR_ALREADY     ? " (already subscribed, ignored)"
+                      : error == OT_ERROR_REJECTED  ? " (rejected)"
+                      : error == OT_ERROR_NOT_FOUND ? " (not found, ignored)"
+                                                    : "");
     }
     else
     {
@@ -1097,7 +1126,7 @@ static void logAddrEvent(bool isAdd, const ot::Ip6::Address &aAddress, otError e
 
 static void processNetifAddrEvent(otInstance *aInstance, struct nlmsghdr *aNetlinkMessage)
 {
-    struct ifaddrmsg *  ifaddr = reinterpret_cast<struct ifaddrmsg *>(NLMSG_DATA(aNetlinkMessage));
+    struct ifaddrmsg   *ifaddr = reinterpret_cast<struct ifaddrmsg *>(NLMSG_DATA(aNetlinkMessage));
     size_t              rtaLength;
     otError             error = OT_ERROR_NONE;
     struct sockaddr_in6 addr6;
@@ -1262,10 +1291,10 @@ static void processNetifAddrEvent(otInstance *aInstance, struct rt_msghdr *rtm)
 #endif
     struct sockaddr_in6 addr6;
     struct sockaddr_in6 netmask;
-    uint8_t *           addrbuf;
+    uint8_t            *addrbuf;
     unsigned int        addrmask = 0;
     unsigned int        i;
-    struct sockaddr *   sa;
+    struct sockaddr    *sa;
     bool                is_link_local;
 
     addr6.sin6_family   = 0;
@@ -1586,10 +1615,10 @@ static void processMLDEvent(otInstance *aInstance)
     struct sockaddr_in6 srcAddr;
     socklen_t           addrLen  = sizeof(srcAddr);
     bool                fromSelf = false;
-    MLDv2Header *       hdr      = reinterpret_cast<MLDv2Header *>(buffer);
+    MLDv2Header        *hdr      = reinterpret_cast<MLDv2Header *>(buffer);
     size_t              offset;
     uint8_t             type;
-    struct ifaddrs *    ifAddrs = nullptr;
+    struct ifaddrs     *ifAddrs = nullptr;
     char                addressString[INET6_ADDRSTRLEN + 1];
 
     bufferLen = recvfrom(sMLDMonitorFd, buffer, sizeof(buffer), 0, reinterpret_cast<sockaddr *>(&srcAddr), &addrLen);
@@ -1982,188 +2011,225 @@ exit:
     return;
 }
 
-struct netlinkrequest {
-  nlmsghdr header;
-  ifaddrmsg msg;
+struct netlinkrequest
+{
+    nlmsghdr  header;
+    ifaddrmsg msg;
 };
 
 namespace {
 const int kMaxReadSize = 4096;
 };
 
-int set_ifname(struct ifaddrs* ifaddr, int interface) {
-  char buf[IFNAMSIZ] = {0};
-  char* name = if_indextoname(interface, buf);
-  if (name == NULL) {
-    return -1;
-  }
-  ifaddr->ifa_name = new char[strlen(name) + 1];
-  strncpy(ifaddr->ifa_name, name, strlen(name) + 1);
-  return 0;
-}
-int set_flags(struct ifaddrs* ifaddr) {
-  int fd = socket(AF_INET, SOCK_DGRAM, 0);
-  if (fd == -1) {
-    return -1;
-  }
-  ifreq ifr;
-  memset(&ifr, 0, sizeof(ifr));
-  strncpy(ifr.ifr_name, ifaddr->ifa_name, IFNAMSIZ - 1);
-  int rc = ioctl(fd, SIOCGIFFLAGS, &ifr);
-  close(fd);
-  if (rc == -1) {
-    return -1;
-  }
-  ifaddr->ifa_flags = ifr.ifr_flags;
-  return 0;
-}
-int set_addresses(struct ifaddrs* ifaddr, ifaddrmsg* msg, void* data,
-                  size_t len) {
-  if (msg->ifa_family == AF_INET) {
-    sockaddr_in* sa = new sockaddr_in;
-    sa->sin_family = AF_INET;
-    memcpy(&sa->sin_addr, data, len);
-    ifaddr->ifa_addr = reinterpret_cast<sockaddr*>(sa);
-  } else if (msg->ifa_family == AF_INET6) {
-    sockaddr_in6* sa = new sockaddr_in6;
-    sa->sin6_family = AF_INET6;
-    sa->sin6_scope_id = msg->ifa_index;
-    memcpy(&sa->sin6_addr, data, len);
-    ifaddr->ifa_addr = reinterpret_cast<sockaddr*>(sa);
-  } else {
-    return -1;
-  }
-  return 0;
-}
-int make_prefixes(struct ifaddrs* ifaddr, int family, int prefixlen) {
-  char* prefix = NULL;
-  if (family == AF_INET) {
-    sockaddr_in* mask = new sockaddr_in;
-    mask->sin_family = AF_INET;
-    memset(&mask->sin_addr, 0, sizeof(in_addr));
-    ifaddr->ifa_netmask = reinterpret_cast<sockaddr*>(mask);
-    if (prefixlen > 32) {
-      prefixlen = 32;
+int set_ifname(struct ifaddrs *ifaddr, int interface)
+{
+    char  buf[IFNAMSIZ] = {0};
+    char *name          = if_indextoname(interface, buf);
+    if (name == NULL)
+    {
+        return -1;
     }
-    prefix = reinterpret_cast<char*>(&mask->sin_addr);
-  } else if (family == AF_INET6) {
-    sockaddr_in6* mask = new sockaddr_in6;
-    mask->sin6_family = AF_INET6;
-    memset(&mask->sin6_addr, 0, sizeof(in6_addr));
-    ifaddr->ifa_netmask = reinterpret_cast<sockaddr*>(mask);
-    if (prefixlen > 128) {
-      prefixlen = 128;
+    ifaddr->ifa_name = new char[strlen(name) + 1];
+    strncpy(ifaddr->ifa_name, name, strlen(name) + 1);
+    return 0;
+}
+int set_flags(struct ifaddrs *ifaddr)
+{
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd == -1)
+    {
+        return -1;
     }
-    prefix = reinterpret_cast<char*>(&mask->sin6_addr);
-  } else {
-    return -1;
-  }
-  for (int i = 0; i < (prefixlen / 8); i++) {
-    *prefix++ = 0xFF;
-  }
-  char remainder = 0xff;
-  remainder <<= (8 - prefixlen % 8);
-  *prefix = remainder;
-  return 0;
-}
-int populate_ifaddrs(struct ifaddrs* ifaddr, ifaddrmsg* msg, void* bytes,
-                     size_t len) {
-  if (set_ifname(ifaddr, msg->ifa_index) != 0) {
-    return -1;
-  }
-  if (set_flags(ifaddr) != 0) {
-    return -1;
-  }
-  if (set_addresses(ifaddr, msg, bytes, len) != 0) {
-    return -1;
-  }
-  if (make_prefixes(ifaddr, msg->ifa_family, msg->ifa_prefixlen) != 0) {
-    return -1;
-  }
-  return 0;
-}
-int getifaddrs(struct ifaddrs** result) {
-  int fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
-  if (fd < 0) {
-    return -1;
-  }
-  netlinkrequest ifaddr_request;
-  memset(&ifaddr_request, 0, sizeof(ifaddr_request));
-  ifaddr_request.header.nlmsg_flags = NLM_F_ROOT | NLM_F_REQUEST;
-  ifaddr_request.header.nlmsg_type = RTM_GETADDR;
-  ifaddr_request.header.nlmsg_len = NLMSG_LENGTH(sizeof(ifaddrmsg));
-  ssize_t count = send(fd, &ifaddr_request, ifaddr_request.header.nlmsg_len, 0);
-  if (static_cast<size_t>(count) != ifaddr_request.header.nlmsg_len) {
+    ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, ifaddr->ifa_name, IFNAMSIZ - 1);
+    int rc = ioctl(fd, SIOCGIFFLAGS, &ifr);
     close(fd);
-    return -1;
-  }
-  struct ifaddrs* start = NULL;
-  struct ifaddrs* current = NULL;
-  char buf[kMaxReadSize];
-  ssize_t amount_read = recv(fd, &buf, kMaxReadSize, 0);
-  while (amount_read > 0) {
-    nlmsghdr* header = reinterpret_cast<nlmsghdr*>(&buf[0]);
-    size_t header_size = static_cast<size_t>(amount_read);
-    for ( ; NLMSG_OK(header, header_size);
-          header = NLMSG_NEXT(header, header_size)) {
-      switch (header->nlmsg_type) {
-        case NLMSG_DONE:
-          // Success. Return.
-          *result = start;
-          close(fd);
-          return 0;
-        case NLMSG_ERROR:
-          close(fd);
-          freeifaddrs(start);
-          return -1;
-        case RTM_NEWADDR: {
-          ifaddrmsg* address_msg =
-              reinterpret_cast<ifaddrmsg*>(NLMSG_DATA(header));
-          rtattr* rta = IFA_RTA(address_msg);
-          ssize_t payload_len = IFA_PAYLOAD(header);
-          while (RTA_OK(rta, payload_len)) {
-            if (rta->rta_type == IFA_ADDRESS) {
-              int family = address_msg->ifa_family;
-              if (family == AF_INET || family == AF_INET6) {
-                ifaddrs* newest = new ifaddrs;
-                memset(newest, 0, sizeof(ifaddrs));
-                if (current) {
-                  current->ifa_next = newest;
-                } else {
-                  start = newest;
-                }
-                if (populate_ifaddrs(newest, address_msg, RTA_DATA(rta),
-                                     RTA_PAYLOAD(rta)) != 0) {
-                  freeifaddrs(start);
-                  *result = NULL;
-                  return -1;
-                }
-                current = newest;
-              }
-            }
-            rta = RTA_NEXT(rta, payload_len);
-          }
-          break;
-        }
-      }
+    if (rc == -1)
+    {
+        return -1;
     }
-    amount_read = recv(fd, &buf, kMaxReadSize, 0);
-  }
-  close(fd);
-  freeifaddrs(start);
-  return -1;
+    ifaddr->ifa_flags = ifr.ifr_flags;
+    return 0;
 }
-void freeifaddrs(struct ifaddrs* addrs) {
-  struct ifaddrs* last = NULL;
-  struct ifaddrs* cursor = addrs;
-  while (cursor) {
-    delete[] cursor->ifa_name;
-    delete cursor->ifa_addr;
-    delete cursor->ifa_netmask;
-    last = cursor;
-    cursor = cursor->ifa_next;
-    delete last;
-  }
+int set_addresses(struct ifaddrs *ifaddr, ifaddrmsg *msg, void *data, size_t len)
+{
+    if (msg->ifa_family == AF_INET)
+    {
+        sockaddr_in *sa = new sockaddr_in;
+        sa->sin_family  = AF_INET;
+        memcpy(&sa->sin_addr, data, len);
+        ifaddr->ifa_addr = reinterpret_cast<sockaddr *>(sa);
+    }
+    else if (msg->ifa_family == AF_INET6)
+    {
+        sockaddr_in6 *sa  = new sockaddr_in6;
+        sa->sin6_family   = AF_INET6;
+        sa->sin6_scope_id = msg->ifa_index;
+        memcpy(&sa->sin6_addr, data, len);
+        ifaddr->ifa_addr = reinterpret_cast<sockaddr *>(sa);
+    }
+    else
+    {
+        return -1;
+    }
+    return 0;
+}
+int make_prefixes(struct ifaddrs *ifaddr, int family, int prefixlen)
+{
+    char *prefix = NULL;
+    if (family == AF_INET)
+    {
+        sockaddr_in *mask = new sockaddr_in;
+        mask->sin_family  = AF_INET;
+        memset(&mask->sin_addr, 0, sizeof(in_addr));
+        ifaddr->ifa_netmask = reinterpret_cast<sockaddr *>(mask);
+        if (prefixlen > 32)
+        {
+            prefixlen = 32;
+        }
+        prefix = reinterpret_cast<char *>(&mask->sin_addr);
+    }
+    else if (family == AF_INET6)
+    {
+        sockaddr_in6 *mask = new sockaddr_in6;
+        mask->sin6_family  = AF_INET6;
+        memset(&mask->sin6_addr, 0, sizeof(in6_addr));
+        ifaddr->ifa_netmask = reinterpret_cast<sockaddr *>(mask);
+        if (prefixlen > 128)
+        {
+            prefixlen = 128;
+        }
+        prefix = reinterpret_cast<char *>(&mask->sin6_addr);
+    }
+    else
+    {
+        return -1;
+    }
+    for (int i = 0; i < (prefixlen / 8); i++)
+    {
+        *prefix++ = 0xFF;
+    }
+    char remainder = 0xff;
+    remainder <<= (8 - prefixlen % 8);
+    *prefix = remainder;
+    return 0;
+}
+int populate_ifaddrs(struct ifaddrs *ifaddr, ifaddrmsg *msg, void *bytes, size_t len)
+{
+    if (set_ifname(ifaddr, msg->ifa_index) != 0)
+    {
+        return -1;
+    }
+    if (set_flags(ifaddr) != 0)
+    {
+        return -1;
+    }
+    if (set_addresses(ifaddr, msg, bytes, len) != 0)
+    {
+        return -1;
+    }
+    if (make_prefixes(ifaddr, msg->ifa_family, msg->ifa_prefixlen) != 0)
+    {
+        return -1;
+    }
+    return 0;
+}
+int getifaddrs(struct ifaddrs **result)
+{
+    int fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+    if (fd < 0)
+    {
+        return -1;
+    }
+    netlinkrequest ifaddr_request;
+    memset(&ifaddr_request, 0, sizeof(ifaddr_request));
+    ifaddr_request.header.nlmsg_flags = NLM_F_ROOT | NLM_F_REQUEST;
+    ifaddr_request.header.nlmsg_type  = RTM_GETADDR;
+    ifaddr_request.header.nlmsg_len   = NLMSG_LENGTH(sizeof(ifaddrmsg));
+    ssize_t count                     = send(fd, &ifaddr_request, ifaddr_request.header.nlmsg_len, 0);
+    if (static_cast<size_t>(count) != ifaddr_request.header.nlmsg_len)
+    {
+        close(fd);
+        return -1;
+    }
+    struct ifaddrs *start   = NULL;
+    struct ifaddrs *current = NULL;
+    char            buf[kMaxReadSize];
+    ssize_t         amount_read = recv(fd, &buf, kMaxReadSize, 0);
+    while (amount_read > 0)
+    {
+        nlmsghdr *header      = reinterpret_cast<nlmsghdr *>(&buf[0]);
+        size_t    header_size = static_cast<size_t>(amount_read);
+        for (; NLMSG_OK(header, header_size); header = NLMSG_NEXT(header, header_size))
+        {
+            switch (header->nlmsg_type)
+            {
+            case NLMSG_DONE:
+                // Success. Return.
+                *result = start;
+                close(fd);
+                return 0;
+            case NLMSG_ERROR:
+                close(fd);
+                freeifaddrs(start);
+                return -1;
+            case RTM_NEWADDR:
+            {
+                ifaddrmsg *address_msg = reinterpret_cast<ifaddrmsg *>(NLMSG_DATA(header));
+                rtattr    *rta         = IFA_RTA(address_msg);
+                ssize_t    payload_len = IFA_PAYLOAD(header);
+                while (RTA_OK(rta, payload_len))
+                {
+                    if (rta->rta_type == IFA_ADDRESS)
+                    {
+                        int family = address_msg->ifa_family;
+                        if (family == AF_INET || family == AF_INET6)
+                        {
+                            ifaddrs *newest = new ifaddrs;
+                            memset(newest, 0, sizeof(ifaddrs));
+                            if (current)
+                            {
+                                current->ifa_next = newest;
+                            }
+                            else
+                            {
+                                start = newest;
+                            }
+                            if (populate_ifaddrs(newest, address_msg, RTA_DATA(rta), RTA_PAYLOAD(rta)) != 0)
+                            {
+                                freeifaddrs(start);
+                                *result = NULL;
+                                return -1;
+                            }
+                            current = newest;
+                        }
+                    }
+                    rta = RTA_NEXT(rta, payload_len);
+                }
+                break;
+            }
+            }
+        }
+        amount_read = recv(fd, &buf, kMaxReadSize, 0);
+    }
+    close(fd);
+    freeifaddrs(start);
+    return -1;
+}
+void freeifaddrs(struct ifaddrs *addrs)
+{
+    struct ifaddrs *last   = NULL;
+    struct ifaddrs *cursor = addrs;
+    while (cursor)
+    {
+        delete[] cursor->ifa_name;
+        delete cursor->ifa_addr;
+        delete cursor->ifa_netmask;
+        last   = cursor;
+        cursor = cursor->ifa_next;
+        delete last;
+    }
 }
 
 #endif // OPENTHREAD_CONFIG_PLATFORM_NETIF_ENABLE
