@@ -31,11 +31,15 @@
  *   This file implements the OpenThread Thread API (for both FTD and MTD).
  */
 
+#include <syslog.h>
+#include <unistd.h>
+
 #include "openthread-core-config.h"
 
 #if OPENTHREAD_FTD || OPENTHREAD_MTD
 
 #include <openthread/thread.h>
+#include <openthread/ot_cmd.h>
 
 #include "common/as_core_type.hpp"
 #include "common/debug.hpp"
@@ -379,16 +383,38 @@ otError otThreadSearchForBetterParent(otInstance *aInstance)
 otError otThreadSetEnabled(otInstance *aInstance, bool aEnabled)
 {
     Error error = kErrorNone;
-
-    if (aEnabled)
+#ifdef OT_CLI_LIB
+    if(useOtCmd)
     {
-        error = AsCoreType(aInstance).Get<Mle::MleRouter>().Start();
+        if(aEnabled)
+        {
+            gOtCmd = OT_CMD_THREAD_START;
+            otLogInfoPlat("ot cmd = [%d]", gOtCmd);
+        }
+        else
+        {
+            gOtCmd = OT_CMD_THREAD_STOP;
+            otLogInfoPlat("ot cmd = [%d]", gOtCmd);
+        }
+        gProcessCmds = 1;
+        otLogInfoPlat("wait till ot cmd  = [%d] processed", gOtCmd);
+        while(gProcessCmds)
+        {
+            sleep(1);
+        }
     }
     else
+#endif
     {
-        AsCoreType(aInstance).Get<Mle::MleRouter>().Stop();
+        if (aEnabled)
+        {
+            error = AsCoreType(aInstance).Get<Mle::MleRouter>().Start();
+        }
+        else
+        {
+            AsCoreType(aInstance).Get<Mle::MleRouter>().Stop();
+        }
     }
-
     return error;
 }
 

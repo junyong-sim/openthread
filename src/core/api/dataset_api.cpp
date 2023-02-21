@@ -30,10 +30,13 @@
  * @file
  *   This file implements the OpenThread Operational Dataset API (for both FTD and MTD).
  */
+#include <syslog.h>
+#include <unistd.h>
 
 #include "openthread-core-config.h"
 
 #include <openthread/dataset.h>
+#include <openthread/ot_cmd.h>
 
 #include "common/as_core_type.hpp"
 #include "common/locator_getters.hpp"
@@ -67,8 +70,26 @@ otError otDatasetSetActive(otInstance *aInstance, const otOperationalDataset *aD
 otError otDatasetSetActiveTlvs(otInstance *aInstance, const otOperationalDatasetTlvs *aDataset)
 {
     AssertPointerIsNotNull(aDataset);
-
-    return AsCoreType(aInstance).Get<MeshCoP::ActiveDatasetManager>().Save(*aDataset);
+#ifdef OT_CLI_LIB
+    if(useOtCmd)
+    {
+        gDataset = aDataset;
+        gOtCmd = OT_CMD_SET_ACTIVE_DATSET;
+        otLogInfoPlat("ot cmd = [%d]", gOtCmd);
+   
+        gProcessCmds = 1;
+        otLogInfoPlat("wait till ot cmd  = [%d] processed", gOtCmd);
+        while(gProcessCmds)
+        {
+            sleep(1);
+        }
+        return kErrorNone;;
+    }
+    else
+#endif
+    {
+        return AsCoreType(aInstance).Get<MeshCoP::ActiveDatasetManager>().Save(*aDataset);
+    }
 }
 
 otError otDatasetGetPending(otInstance *aInstance, otOperationalDataset *aDataset)
