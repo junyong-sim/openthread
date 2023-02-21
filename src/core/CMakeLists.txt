@@ -28,6 +28,11 @@
 
 set(COMMON_INCLUDES
     ${PROJECT_SOURCE_DIR}/src/core
+if(OT_CLI_LIB)
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/src/posix/platform
+    ${PROJECT_SOURCE_DIR}/src/posix/platform/include
+endif()
 )
 
 set(COMMON_SOURCES
@@ -300,6 +305,10 @@ if(OT_RCP)
     if (OT_APP_CLI)
         include(radio_cli.cmake)
     endif()
+endif()
+
+if(OT_CLI_LIB)
+    include(openthread-cli.cmake)
 endif()
 
 set_property(SOURCE api/instance_api.cpp
