@@ -32,7 +32,7 @@ add_library(openthread-cli SHARED
 
 target_compile_definitions(openthread-cli PRIVATE
     OPENTHREAD_FTD=1
-	OT_CLI_LIB=1
+	# OT_CLI_LIB=1
 )
 
 target_compile_options(openthread-cli PRIVATE
