@@ -34,22 +34,22 @@
 #include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <pthread.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
-#include <pthread.h>
+#include <unistd.h>
 
 #include <openthread/cli.h>
 #include <openthread/diag.h>
 #include <openthread/logging.h>
+#include <openthread/ot_cmd.h>
 #include <openthread/tasklet.h>
 #include <openthread/thread.h>
 #include <openthread/platform/radio.h>
-#include <openthread/ot_cmd.h>
 
 #include <common/code_utils.hpp>
 #include <lib/platform/exit_code.h>
@@ -59,18 +59,18 @@
 #define MULTIPLE_INSTANCE_MAX 10
 #define MAXCOMPORTLEN 9
 
-static otInstance *gInstance = NULL;
-static pthread_t gThreadId;
-pthread_mutex_t gLock;
-bool useOtCmd = 0;
-int gOtCmd = 0;
-bool gProcessCmds = 0;
-const otOperationalDatasetTlvs *gDataset = NULL;
-bool gTerminate = 0;
+static otInstance              *gInstance = NULL;
+static pthread_t                gThreadId;
+pthread_mutex_t                 gLock;
+bool                            useOtCmd     = 0;
+int                             gOtCmd       = 0;
+bool                            gProcessCmds = 0;
+const otOperationalDatasetTlvs *gDataset     = NULL;
+bool                            gTerminate   = 0;
 
 typedef struct Param
 {
-    char comPort[MAXCOMPORTLEN];
+    char     comPort[MAXCOMPORTLEN];
     uint16_t debugLevel;
 } Param;
 
@@ -122,14 +122,16 @@ void otPlatReset(otInstance *aInstance)
 
 void processCmds()
 {
-    if(!gProcessCmds) {
-        //otLogInfoPlat("no ot cmds to process!!!");
+    if (!gProcessCmds)
+    {
+        // otLogInfoPlat("no ot cmds to process!!!");
         return;
     }
 
     otLogInfoPlat("processCmds [%d]", gOtCmd);
     useOtCmd = 0;
-    switch(gOtCmd) {
+    switch (gOtCmd)
+    {
     case OT_CMD_IFCONFIG_UP:
         otLogInfoPlat("OT_CMD_IFCONFIG_UP!!!");
         otIp6SetEnabled(gInstance, true);
@@ -137,11 +139,11 @@ void processCmds()
     case OT_CMD_IFCONFIG_DOWN:
         otLogInfoPlat("OT_CMD_IFCONFIG_DOWN!!!");
         otIp6SetEnabled(gInstance, false);
-        break;  
+        break;
     case OT_CMD_THREAD_START:
         otLogInfoPlat("OT_CMD_THREAD_START!!!");
         otThreadSetEnabled(gInstance, true);
-        break;  
+        break;
     case OT_CMD_THREAD_STOP:
         otLogInfoPlat("OT_CMD_THREAD_STOP!!!");
         otThreadSetEnabled(gInstance, false);
@@ -155,42 +157,54 @@ void processCmds()
     }
 
     otLogInfoPlat("ot cmd  = [%d] processed", gOtCmd);
-    useOtCmd = 1;
-    gOtCmd = 0;
+    useOtCmd     = 1;
+    gOtCmd       = 0;
     gProcessCmds = 0;
 }
 
-static bool getRadioURL(char *comPort) {
+static bool getRadioURL(char *comPort)
+{
     struct stat st;
-    char radioDevice[20] = { 0, };
+    char        radioDevice[20] = {
+               0,
+    };
 
-    /* For multiple devices and intefaces, 
+    /* For multiple devices and intefaces,
      * we will align the index of them.
      */
     sprintf(radioDevice, "/dev/%s", comPort);
-    if(stat(radioDevice, &st) == 0) {
+    if (stat(radioDevice, &st) == 0)
+    {
         otLogInfoPlat("radio device found [%s]", radioDevice);
         return true;
     }
     return false;
 }
 
-static int getInterface() {
+static int getInterface()
+{
     struct stat st;
-    int i = 0;
-    char wpanInterface[50] = { 0, };
+    int         i                 = 0;
+    char        wpanInterface[50] = {
+               0,
+    };
 
-    for(i = 0; i < MULTIPLE_INSTANCE_MAX; i++) {
+    for (i = 0; i < MULTIPLE_INSTANCE_MAX; i++)
+    {
         sprintf(wpanInterface, "/sys/class/net/wpan%d", i);
-        if(stat(wpanInterface, &st) == 0) {
+        if (stat(wpanInterface, &st) == 0)
+        {
             otLogInfoPlat("Interface is already used [%s]", wpanInterface);
             continue;
-        } else {
+        }
+        else
+        {
             otLogInfoPlat("find empty interface [%s]", wpanInterface);
             break;
         }
     }
-    if(i == MULTIPLE_INSTANCE_MAX) {
+    if (i == MULTIPLE_INSTANCE_MAX)
+    {
         otLogInfoPlat("Not valid radio device found!!!!");
         return -1;
     }
@@ -202,46 +216,50 @@ void otCreateInstance(void *arg)
 {
     pthread_mutex_lock(&gLock);
     PosixConfig config;
-    int interfaceIdx = 0;
-    char radioUrl[100] = { 0, };
-    char iface[100] = { 0, };
-    Param *initParam = (Param*)arg;
+    int         interfaceIdx  = 0;
+    char        radioUrl[100] = {
+               0,
+    };
+    char iface[100] = {
+        0,
+    };
+    Param *initParam = (Param *)arg;
 
     memset(&config, 0, sizeof(config));
 
     otLogInfoPlat("otCreateInstance");
-	
+
     interfaceIdx = getInterface();
     sprintf(iface, "wpan%d", interfaceIdx);
     otLogInfoPlat("interface found [%s]", iface);
 
-    if (!getRadioURL(initParam->comPort)) {
+    if (!getRadioURL(initParam->comPort))
+    {
         return;
     }
     sprintf(radioUrl, "spinel+hdlc+uart:///dev/%s", initParam->comPort);
     otLogInfoPlat("radio Url found [%s]", radioUrl);
     otLogInfoPlat("debug level [%d]", initParam->debugLevel);
 
-    config.mLogLevel = initParam->debugLevel;
-    config.mIsVerbose = true;
+    config.mLogLevel                      = initParam->debugLevel;
+    config.mIsVerbose                     = true;
     config.mPlatformConfig.mInterfaceName = iface;
     VerifyOrDie(config.mPlatformConfig.mRadioUrlNum < OT_ARRAY_LENGTH(config.mPlatformConfig.mRadioUrls),
-        OT_EXIT_INVALID_ARGUMENTS);
+                OT_EXIT_INVALID_ARGUMENTS);
     config.mPlatformConfig.mRadioUrls[config.mPlatformConfig.mRadioUrlNum++] = radioUrl;
-    config.mPlatformConfig.mRealTimeSignal = 41;
-    config.mPlatformConfig.mSpeedUpFactor = 1;
-	
-	
+    config.mPlatformConfig.mRealTimeSignal                                   = 41;
+    config.mPlatformConfig.mSpeedUpFactor                                    = 1;
+
     gInstance = InitInstance(&config);
     otLogInfoPlat("ot instance create success!!!");
     otIp6SetEnabled(gInstance, true);
     otLogInfoPlat("if config up done");
     otThreadSetEnabled(gInstance, true);
     otLogInfoPlat("thread start done");
-        
+
     useOtCmd = 1;
     pthread_mutex_unlock(&gLock);
-	
+
     while (gTerminate == false)
     {
         // otLogInfoPlat("Enter thread mainloop");
@@ -271,54 +289,56 @@ void otCreateInstance(void *arg)
         processCmds();
         // otLogInfoPlat("Exit thread mainloop");
     }
-	
+
 exit:
     otSysDeinit();
-    gThreadId = 0;
-    gInstance = NULL;
+    gThreadId  = 0;
+    gInstance  = NULL;
     gTerminate = false;
     otLogInfoPlat("terminate thread mainloop : exit");
     return;
-	
 }
 
 void *otThreadMainLoop(void *arg)
 {
-	otLogInfoPlat("Inside otThreadMainLoop");
-	
-	otCreateInstance(arg);
-	
-	return NULL;
+    otLogInfoPlat("Inside otThreadMainLoop");
+
+    otCreateInstance(arg);
+
+    return NULL;
 }
 
-void otGetInstance(otInstance **instance, pthread_t *instanceId, const char * comPort, uint16_t debug) {
-	Param *initParam = (Param*)malloc(sizeof(Param));
+void otGetInstance(otInstance **instance, pthread_t *instanceId, const char *comPort, uint16_t debug)
+{
+    Param *initParam = (Param *)malloc(sizeof(Param));
     strcpy(initParam->comPort, comPort);
     initParam->debugLevel = debug;
 
-	otLogInfoPlat("otGetInstance");
-	
-	 if(gInstance) {
+    otLogInfoPlat("otGetInstance");
+
+    if (gInstance)
+    {
         otLogInfoPlat("ot instance already initialised!!!");
-		*instance = gInstance;
-		instanceId = &gThreadId;
-		return;
+        *instance  = gInstance;
+        instanceId = &gThreadId;
+        return;
     }
 
-    if (pthread_mutex_init(&gLock, NULL) != 0) {
-        otLogInfoPlat( "mutex init has failed");
-		return;
+    if (pthread_mutex_init(&gLock, NULL) != 0)
+    {
+        otLogInfoPlat("mutex init has failed");
+        return;
     }
-	
+
     otLogInfoPlat("Before otThread");
     pthread_create(&gThreadId, NULL, otThreadMainLoop, initParam);
-	
+
     otLogInfoPlat("Wait for 1 Seconds to initialise openthread stack !!!");
     sleep(1);
 
     pthread_mutex_lock(&gLock);
-	
-    *instance = gInstance;
+
+    *instance   = gInstance;
     *instanceId = gThreadId;
     otLogInfoPlat("After otThread : gThreadId[%ld]", gThreadId);
 
@@ -327,18 +347,20 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId, const char * co
     return;
 }
 
-void otWait() {
+void otWait()
+{
     otLogInfoPlat("otWait");
     pthread_join(gThreadId, NULL);
 }
 
-void otDestroyInstance()  {
+void otDestroyInstance()
+{
     otLogInfoPlat("otDestroyInstance");
 
     pthread_mutex_destroy(&gLock);
-    gOtCmd = 0;
+    gOtCmd       = 0;
     gProcessCmds = 0;
-    useOtCmd = 0;
-    gDataset = NULL;
-    gTerminate = true;
+    useOtCmd     = 0;
+    gDataset     = NULL;
+    gTerminate   = true;
 }

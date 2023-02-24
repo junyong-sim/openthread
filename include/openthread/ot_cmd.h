@@ -44,18 +44,18 @@
 extern "C" {
 #endif
 
-extern int gOtCmd;
-extern bool gProcessCmds;
-extern bool useOtCmd;
+extern int                             gOtCmd;
+extern bool                            gProcessCmds;
+extern bool                            useOtCmd;
 extern const otOperationalDatasetTlvs *gDataset;
 /* ot commands */
 typedef enum otCmds
 {
-    OT_CMD_IFCONFIG_UP      = 1,  ///< ifconfig up
-    OT_CMD_IFCONFIG_DOWN    = 2,  ///< ifconfig down
-    OT_CMD_THREAD_START     = 3,  ///< thread start.
-    OT_CMD_THREAD_STOP      = 4,  ///< thread stop
-    OT_CMD_SET_ACTIVE_DATSET      = 5,  ///< set active dataset
+    OT_CMD_IFCONFIG_UP       = 1, ///< ifconfig up
+    OT_CMD_IFCONFIG_DOWN     = 2, ///< ifconfig down
+    OT_CMD_THREAD_START      = 3, ///< thread start.
+    OT_CMD_THREAD_STOP       = 4, ///< thread stop
+    OT_CMD_SET_ACTIVE_DATSET = 5, ///< set active dataset
 
 } otCmds;
 

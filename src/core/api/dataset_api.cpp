@@ -71,19 +71,20 @@ otError otDatasetSetActiveTlvs(otInstance *aInstance, const otOperationalDataset
 {
     AssertPointerIsNotNull(aDataset);
 #ifdef OT_CLI_LIB
-    if(useOtCmd)
+    if (useOtCmd)
     {
         gDataset = aDataset;
-        gOtCmd = OT_CMD_SET_ACTIVE_DATSET;
+        gOtCmd   = OT_CMD_SET_ACTIVE_DATSET;
         otLogInfoPlat("ot cmd = [%d]", gOtCmd);
-   
+
         gProcessCmds = 1;
         otLogInfoPlat("wait till ot cmd  = [%d] processed", gOtCmd);
-        while(gProcessCmds)
+        while (gProcessCmds)
         {
             sleep(1);
         }
-        return kErrorNone;;
+        return kErrorNone;
+        ;
     }
     else
 #endif

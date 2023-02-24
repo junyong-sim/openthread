@@ -49,11 +49,11 @@ using namespace ot;
 
 otError otIp6SetEnabled(otInstance *aInstance, bool aEnabled)
 {
-    Error     error    = kErrorNone;
+    Error error = kErrorNone;
 #ifdef OT_CLI_LIB
-    if(useOtCmd)
+    if (useOtCmd)
     {
-        if(aEnabled)
+        if (aEnabled)
         {
             gOtCmd = OT_CMD_IFCONFIG_UP;
             otLogInfoPlat("ot cmd = [%d]", gOtCmd);
@@ -66,7 +66,7 @@ otError otIp6SetEnabled(otInstance *aInstance, bool aEnabled)
         gProcessCmds = 1;
 
         otLogInfoPlat("wait till ot cmd  = [%d] processed", gOtCmd);
-        while(gProcessCmds)
+        while (gProcessCmds)
         {
             sleep(1);
         }
@@ -90,11 +90,10 @@ otError otIp6SetEnabled(otInstance *aInstance, bool aEnabled)
         }
 
 #if OPENTHREAD_CONFIG_LINK_RAW_ENABLE
-exit:
+    exit:
 #endif
     }
     return error;
-     
 }
 
 bool otIp6IsEnabled(otInstance *aInstance) { return AsCoreType(aInstance).Get<ThreadNetif>().IsUp(); }
