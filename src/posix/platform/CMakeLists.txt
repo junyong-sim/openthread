@@ -135,7 +135,7 @@ target_link_libraries(openthread-posix
         openthread-platform
     PRIVATE
         openthread-url
-        ot-config-ftd
+        ot-config-mtd
         ot-config
         ot-posix-config
         util
@@ -154,8 +154,8 @@ target_compile_definitions(openthread-posix
     PUBLIC
         ${OT_PUBLIC_DEFINES}
     PRIVATE
-        OPENTHREAD_FTD=1
-        OPENTHREAD_MTD=0
+        OPENTHREAD_FTD=0
+        OPENTHREAD_MTD=1
 )
 
 target_compile_options(openthread-posix PRIVATE

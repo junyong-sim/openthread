@@ -31,8 +31,9 @@ add_library(openthread-cli SHARED
 )
 
 target_compile_definitions(openthread-cli PRIVATE
-    OPENTHREAD_FTD=1
-	# OT_CLI_LIB=1
+    OPENTHREAD_FTD=0
+    OPENTHREAD_MTD=1
+	OT_CLI_LIB=1
 )
 
 target_compile_options(openthread-cli PRIVATE
@@ -49,12 +50,12 @@ target_link_libraries(openthread-cli
 	    openthread-hdlc
         openthread-spinel-rcp
         ${OT_MBEDTLS}
-        ot-config-ftd
+        ot-config-mtd
         ot-config
 )
 
 if(NOT OT_EXCLUDE_TCPLP_LIB)
-    target_link_libraries(openthread-cli PRIVATE tcplp-ftd)
+    target_link_libraries(openthread-cli PRIVATE tcplp-mtd)
 endif()
 
 install(TARGETS openthread-cli

@@ -88,11 +88,10 @@ otError otIp6SetEnabled(otInstance *aInstance, bool aEnabled)
         {
             instance.Get<ThreadNetif>().Down();
         }
-
+    }
 #if OPENTHREAD_CONFIG_LINK_RAW_ENABLE
     exit:
 #endif
-    }
     return error;
 }
 
