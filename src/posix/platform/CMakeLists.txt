@@ -130,17 +130,31 @@ add_library(openthread-posix
     ${OT_POSIX_CONFIG_RCP_VENDOR_INTERFACE}
 )
 
-target_link_libraries(openthread-posix
-    PUBLIC
-        openthread-platform
-    PRIVATE
-        openthread-url
-        ot-config-mtd
-        ot-config
-        ot-posix-config
-        util
-        $<$<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>:rt>
-)
+if(OT_FTD)
+    target_link_libraries(openthread-posix
+        PUBLIC
+            openthread-platform
+        PRIVATE
+            openthread-url
+            ot-config-ftd
+            ot-config
+            ot-posix-config
+            util
+            $<$<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>:rt>
+    )
+elseif(OT_MTD)
+    target_link_libraries(openthread-posix
+        PUBLIC
+            openthread-platform
+        PRIVATE
+            openthread-url
+            ot-config-mtd
+            ot-config
+            ot-posix-config
+            util
+            $<$<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>:rt>
+    )
+endif()
 
 option(OT_TARGET_OPENWRT "enable openthread posix for OpenWRT" OFF)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux" AND NOT OT_TARGET_OPENWRT)
@@ -150,13 +164,23 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux" AND NOT OT_TARGET_OPENWRT)
     target_link_libraries(openthread-posix PRIVATE anl)
 endif()
 
-target_compile_definitions(openthread-posix
-    PUBLIC
-        ${OT_PUBLIC_DEFINES}
-    PRIVATE
-        OPENTHREAD_FTD=0
-        OPENTHREAD_MTD=1
-)
+if(OT_FTD)
+    target_compile_definitions(openthread-posix
+        PUBLIC
+            ${OT_PUBLIC_DEFINES}
+        PRIVATE
+            OPENTHREAD_FTD=1
+            OPENTHREAD_MTD=0
+    )
+elseif(OT_MTD)
+    target_compile_definitions(openthread-posix
+        PUBLIC
+            ${OT_PUBLIC_DEFINES}
+        PRIVATE
+            OPENTHREAD_FTD=0
+            OPENTHREAD_MTD=1
+    )
+endif()
 
 target_compile_options(openthread-posix PRIVATE
     ${OT_CFLAGS}

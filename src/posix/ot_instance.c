@@ -120,6 +120,7 @@ void otPlatReset(otInstance *aInstance)
     assert(false);
 }
 
+#ifdef OT_CLI_LIB
 void processCmds()
 {
     if (!gProcessCmds)
@@ -161,6 +162,7 @@ void processCmds()
     gOtCmd       = 0;
     gProcessCmds = 0;
 }
+#endif
 
 static bool getRadioURL(char *comPort)
 {
@@ -279,6 +281,7 @@ void otCreateInstance(void *arg)
 
         if (otSysMainloopPoll(&mainloop) >= 0)
         {
+            usleep(2000);
             otSysMainloopProcess(gInstance, &mainloop);
         }
         else if (errno != EINTR)
@@ -286,7 +289,9 @@ void otCreateInstance(void *arg)
             perror("select");
             ExitNow();
         }
+#ifdef OT_CLI_LIB
         processCmds();
+#endif
         // otLogInfoPlat("Exit thread mainloop");
     }
 

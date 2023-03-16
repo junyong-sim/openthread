@@ -30,11 +30,19 @@ add_library(openthread-cli SHARED
     ${PROJECT_SOURCE_DIR}/src/posix/ot_instance.c
 )
 
-target_compile_definitions(openthread-cli PRIVATE
-    OPENTHREAD_FTD=0
-    OPENTHREAD_MTD=1
-	OT_CLI_LIB=1
-)
+if(OT_FTD)
+    target_compile_definitions(openthread-cli PRIVATE
+        OPENTHREAD_FTD=1
+        OPENTHREAD_MTD=0
+        #OT_CLI_LIB=1
+    )
+elseif(OT_MTD)
+    target_compile_definitions(openthread-cli PRIVATE
+        OPENTHREAD_FTD=0
+        OPENTHREAD_MTD=1
+        #OT_CLI_LIB=1
+    )
+endif()
 
 target_compile_options(openthread-cli PRIVATE
     ${OT_CFLAGS}
@@ -44,18 +52,34 @@ target_include_directories(openthread-cli PUBLIC ${OT_PUBLIC_INCLUDES} PRIVATE $
 
 target_sources(openthread-cli PRIVATE ${COMMON_SOURCES})
 
-target_link_libraries(openthread-cli
-    PRIVATE
-	    openthread-posix
-	    openthread-hdlc
-        openthread-spinel-rcp
-        ${OT_MBEDTLS}
-        ot-config-mtd
-        ot-config
-)
+if(OT_FTD)
+    target_link_libraries(openthread-cli
+        PRIVATE
+            openthread-posix
+            openthread-hdlc
+            openthread-spinel-rcp
+            ${OT_MBEDTLS}
+            ot-config-ftd
+            ot-config
+    )
+elseif(OT_MTD)
+    target_link_libraries(openthread-cli
+        PRIVATE
+            openthread-posix
+            openthread-hdlc
+            openthread-spinel-rcp
+            ${OT_MBEDTLS}
+            ot-config-mtd
+            ot-config
+    )
+endif()
 
 if(NOT OT_EXCLUDE_TCPLP_LIB)
-    target_link_libraries(openthread-cli PRIVATE tcplp-mtd)
+    if(OT_FTD)
+        target_link_libraries(openthread-cli PRIVATE tcplp-ftd)
+    elseif(OT_MTD)
+        target_link_libraries(openthread-cli PRIVATE tcplp-mtd)
+    endif()
 endif()
 
 install(TARGETS openthread-cli
