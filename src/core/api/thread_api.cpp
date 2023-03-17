@@ -395,30 +395,28 @@ otError otThreadSetEnabled(otInstance *aInstance, bool aEnabled)
 {
     Error error = kErrorNone;
 #ifdef OT_CLI_LIB
-    if(useOtCmd)
+    if (useOtCmd)
     {
-        if(aEnabled)
+        if (aEnabled)
         {
             gOtCmd = OT_CMD_THREAD_START;
-            syslog(LOG_INFO, "ot cmd = [%d]", gOtCmd);
+            otLogInfoPlat("ot cmd = [%d]", gOtCmd);
         }
         else
         {
             gOtCmd = OT_CMD_THREAD_STOP;
-            syslog(LOG_INFO, "ot cmd = [%d]", gOtCmd);
+            otLogInfoPlat("ot cmd = [%d]", gOtCmd);
         }
         gProcessCmds = 1;
-        syslog(LOG_INFO, "wait till ot cmd  = [%d] processed", gOtCmd);
-        while(gProcessCmds)
+        otLogInfoPlat("wait till ot cmd  = [%d] processed", gOtCmd);
+        while (gProcessCmds)
         {
-            //syslog(LOG_INFO, "wait till ot cmd  = [%d] processed", gOtCmd);
             sleep(1);
         }
     }
     else
 #endif
     {
-
         if (aEnabled)
         {
             error = AsCoreType(aInstance).Get<Mle::MleRouter>().Start();

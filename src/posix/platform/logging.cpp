@@ -29,7 +29,7 @@
 #include "openthread-posix-config.h"
 #include "platform-posix.h"
 
-// #define OPENTHREAD_DISABLE_SYSLOG
+#define OPENTHREAD_DISABLE_SYSLOG
 
 #include <assert.h>
 #include <stdarg.h>
@@ -83,11 +83,24 @@ OT_TOOL_WEAK void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const 
     OT_UNUSED_VARIABLE(aLogLevel);
     if ((vsnprintf(buffer, sizeof(buffer), aFormat, args) > 0))
     {
-        time_t rawtime;
-        time(&rawtime);
-        char *r_time               = ctime(&rawtime);
-        r_time[strlen(r_time) - 1] = 0;
-        printf("%s %s[%d]: %s\n", r_time, "libopenthread-cli", getpid(), buffer);
+        struct timeval tv;
+        time_t nowtime;
+        struct tm * nowtm;
+        char tmbuf[64], buf[64];
+        gettimeofday(&tv, nullptr);
+        nowtime = tv.tv_sec;
+        nowtm   = localtime(&nowtime);
+        strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S", nowtm);
+
+        int ret = snprintf(buf, sizeof buf, "%s.%06ld", tmbuf, tv.tv_usec);
+        if (ret < 0)
+        {
+            printf("[%s][%d:%d] openthread: %s\n", buf, getpid(), gettid(), "failed to make log");
+        }
+        else
+        {
+            printf("[%s][%d:%d] openthread: %s\n", buf, getpid(), gettid(), buffer);
+        }
     }
 #else
     vsyslog(aLogLevel, aFormat, args);
