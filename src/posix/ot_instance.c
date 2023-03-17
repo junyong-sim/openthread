@@ -46,7 +46,6 @@
 #include <openthread/cli.h>
 #include <openthread/diag.h>
 #include <openthread/logging.h>
-#include <openthread/ot_cmd.h>
 #include <openthread/tasklet.h>
 #include <openthread/thread.h>
 #include <openthread/platform/radio.h>
@@ -62,10 +61,6 @@
 static otInstance              *gInstance = NULL;
 static pthread_t                gThreadId;
 pthread_mutex_t                 gLock;
-bool                            useOtCmd     = 0;
-int                             gOtCmd       = 0;
-bool                            gProcessCmds = 0;
-const otOperationalDatasetTlvs *gDataset     = NULL;
 bool                            gTerminate   = 0;
 
 typedef struct Param
@@ -118,48 +113,6 @@ void otPlatReset(otInstance *aInstance)
     otSysDeinit();
 
     assert(false);
-}
-
-void processCmds()
-{
-    if (!gProcessCmds)
-    {
-        // otLogInfoPlat("no ot cmds to process!!!");
-        return;
-    }
-
-    otLogInfoPlat("processCmds [%d]", gOtCmd);
-    useOtCmd = 0;
-    switch (gOtCmd)
-    {
-    case OT_CMD_IFCONFIG_UP:
-        otLogInfoPlat("OT_CMD_IFCONFIG_UP!!!");
-        otIp6SetEnabled(gInstance, true);
-        break;
-    case OT_CMD_IFCONFIG_DOWN:
-        otLogInfoPlat("OT_CMD_IFCONFIG_DOWN!!!");
-        otIp6SetEnabled(gInstance, false);
-        break;
-    case OT_CMD_THREAD_START:
-        otLogInfoPlat("OT_CMD_THREAD_START!!!");
-        otThreadSetEnabled(gInstance, true);
-        break;
-    case OT_CMD_THREAD_STOP:
-        otLogInfoPlat("OT_CMD_THREAD_STOP!!!");
-        otThreadSetEnabled(gInstance, false);
-        break;
-    case OT_CMD_SET_ACTIVE_DATSET:
-        otLogInfoPlat("OT_CMD_SET_ACTIVE_DATSET!!!");
-        otDatasetSetActiveTlvs(gInstance, gDataset);
-        break;
-    default:
-        otLogInfoPlat("invalid ot command!!!");
-    }
-
-    otLogInfoPlat("ot cmd  = [%d] processed", gOtCmd);
-    useOtCmd     = 1;
-    gOtCmd       = 0;
-    gProcessCmds = 0;
 }
 
 static bool getRadioURL(char *comPort)
@@ -257,7 +210,6 @@ void otCreateInstance(void *arg)
     otThreadSetEnabled(gInstance, true);
     otLogInfoPlat("thread start done");
 
-    useOtCmd = 1;
     pthread_mutex_unlock(&gLock);
 
     while (gTerminate == false)
@@ -279,7 +231,7 @@ void otCreateInstance(void *arg)
 
         if (otSysMainloopPoll(&mainloop) >= 0)
         {
-            // usleep(2000); // [Fix] Spinel : response timeout
+            usleep(2000); // [Fix] Spinel : response timeout
             otSysMainloopProcess(gInstance, &mainloop);
         }
         else if (errno != EINTR)
@@ -287,7 +239,6 @@ void otCreateInstance(void *arg)
             perror("select");
             ExitNow();
         }
-        processCmds();
         // otLogInfoPlat("Exit thread mainloop");
     }
 
@@ -357,11 +308,6 @@ void otWait()
 void otDestroyInstance()
 {
     otLogInfoPlat("otDestroyInstance");
-
     pthread_mutex_destroy(&gLock);
-    gOtCmd       = 0;
-    gProcessCmds = 0;
-    useOtCmd     = 0;
-    gDataset     = NULL;
     gTerminate   = true;
 }

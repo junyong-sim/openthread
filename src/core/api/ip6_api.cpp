@@ -30,15 +30,10 @@
  * @file
  *   This file implements the OpenThread IPv6 API.
  */
-#include <syslog.h>
-#include <unistd.h>
-
 
 #include "openthread-core-config.h"
 
 #include <openthread/ip6.h>
-#include <openthread/ot_cmd.h>
-
 
 #include "common/as_core_type.hpp"
 #include "common/locator_getters.hpp"
@@ -52,51 +47,26 @@ using namespace ot;
 otError otIp6SetEnabled(otInstance *aInstance, bool aEnabled)
 {
     Error     error    = kErrorNone;
-#ifdef OT_CLI_LIB
-    if (useOtCmd)
-    {
-        if (aEnabled)
-        {
-            gOtCmd = OT_CMD_IFCONFIG_UP;
-            otLogInfoPlat("ot cmd = [%d]", gOtCmd);
-        }
-        else
-        {
-            gOtCmd = OT_CMD_IFCONFIG_DOWN;
-            otLogInfoPlat("ot cmd = [%d]", gOtCmd);
-        }
-        gProcessCmds = 1;
-
-        otLogInfoPlat("wait till ot cmd  = [%d] processed", gOtCmd);
-        while (gProcessCmds)
-        {
-            sleep(1);
-        }
-    }
-    else
-#endif
-    {
-        Instance &instance = AsCoreType(aInstance);
+    Instance &instance = AsCoreType(aInstance);
 
 #if OPENTHREAD_CONFIG_LINK_RAW_ENABLE
-        VerifyOrExit(!instance.Get<Mac::LinkRaw>().IsEnabled(), error = kErrorInvalidState);
+    VerifyOrExit(!instance.Get<Mac::LinkRaw>().IsEnabled(), error = kErrorInvalidState);
 #endif
 
-        if (aEnabled)
-        {
-            instance.Get<ThreadNetif>().Up();
-        }
-        else
-        {
-            instance.Get<ThreadNetif>().Down();
-        }
+    if (aEnabled)
+    {
+        instance.Get<ThreadNetif>().Up();
+    }
+    else
+    {
+        instance.Get<ThreadNetif>().Down();
+    }
 
 #if OPENTHREAD_CONFIG_LINK_RAW_ENABLE
 exit:
 #endif
-    }
+
     return error;
-     
 }
 
 bool otIp6IsEnabled(otInstance *aInstance)
