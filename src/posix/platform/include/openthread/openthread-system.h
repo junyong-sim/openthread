@@ -242,6 +242,44 @@ typedef struct otSysInfraNetIfAddressCounters
  */
 void otSysCountInfraNetifAddresses(otSysInfraNetIfAddressCounters *aAddressCounters);
 
+#if OPENTHREAD_POSIX_CONFIG_MULTITHREAD_SUPPORT_ENABLE
+/**
+ * This function create thread and processing OpenThread stack.
+ *
+ * @param[in,out]   aInstance   A pointer to the OpenThread instance.
+ * @param[in]       aComPort    A pointer to the radio device name.
+ * @param[in]       aDebug      Debug level.
+ *
+ */
+void otSysGetInstance(otInstance **aInstance, const char *aComPort, uint16_t aDebug);
+
+/**
+ * This function waits for the pThreadOtMainLoop to finish its task .
+ *
+ */
+void otSysWait(void);
+
+/**
+ * This function locks the mutex object referenced by mutex.
+ *
+ */
+void otSysLock(void);
+
+/**
+ * This function unlocks the mutex object referenced by mutex.
+ *
+ *
+ */
+void otSysUnlock(void);
+
+/**
+ * This function terminates pThreadOtMainLoop and deinitialize OpenThread instance
+ *
+ *
+ */
+void otSysDestroyInstance(void);
+#endif //OPENTHREAD_POSIX_CONFIG_MULTITHREAD_SUPPORT_ENABLE
+
 #ifdef __cplusplus
 } // end of extern "C"
 #endif
