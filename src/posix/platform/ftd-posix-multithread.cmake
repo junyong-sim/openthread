@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2020, The OpenThread Authors.
+#  Copyright (c) 2023, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,32 +26,22 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library(openthread-mtd)
-
-target_compile_definitions(openthread-mtd PRIVATE
-    OPENTHREAD_MTD=1
+add_library(openthread-ftd-posix-multithread SHARED
+    multithread_api.cpp
 )
 
-target_compile_options(openthread-mtd PRIVATE
-    ${OT_CFLAGS}
+target_compile_options(openthread-ftd-posix-multithread PRIVATE
+    ${OT_CFLAGS}	
+    -fPIC
 )
 
-if (OT_MULTITHREAD)
-    target_compile_definitions(openthread-mtd PRIVATE
-        OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS=3
-    )
-    target_compile_options(openthread-mtd PRIVATE -fPIC)
-endif()
-
-target_include_directories(openthread-mtd PUBLIC ${OT_PUBLIC_INCLUDES} PRIVATE ${COMMON_INCLUDES})
-
-target_sources(openthread-mtd PRIVATE ${COMMON_SOURCES})
-
-target_link_libraries(openthread-mtd
+target_link_libraries(openthread-ftd-posix-multithread
     PRIVATE
-        ${OT_MBEDTLS}
-        ot-config-mtd
+        -Wl,--whole-archive
+        openthread-ftd
+        -Wl,--no-whole-archive
+        openthread-posix
+        ot-config-ftd
+        ot-posix-config
         ot-config
 )
-
-target_link_libraries(openthread-mtd PRIVATE tcplp-mtd)
