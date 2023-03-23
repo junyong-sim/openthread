@@ -305,6 +305,17 @@ void otWait()
     pthread_join(gThreadId, NULL);
 }
 
+void otLock()
+{
+    otLogInfoPlat("otLock");
+    pthread_mutex_lock(&gLock);
+}
+
+void otUnlock()
+{
+    otLogInfoPlat("otUnlock");
+    pthread_mutex_unlock(&gLock);
+}
 void otDestroyInstance()
 {
     otLogInfoPlat("otDestroyInstance");
