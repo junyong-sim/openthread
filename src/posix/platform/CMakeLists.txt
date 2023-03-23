@@ -101,6 +101,14 @@ if(OT_ANDROID_NDK)
     target_compile_options(ot-posix-config INTERFACE -Wno-sign-compare)
 endif()
 
+option(OT_LIB_SHARED "Enable generation of openthread shared libraries" OFF)
+if (OT_LIB_SHARED)
+    target_compile_definitions(ot-posix-config
+        INTERFACE "OPENTHREAD_POSIX_CONFIG_LIB_SHARED_ENABLE=1"
+    )
+	target_compile_options(ot-posix-config INTERFACE ${OT_SHARED_CFLAGS})
+endif()
+
 add_library(openthread-posix
     alarm.cpp
     backbone.cpp
