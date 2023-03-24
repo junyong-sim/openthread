@@ -231,8 +231,12 @@ void otCreateInstance(void *arg)
 
         if (otSysMainloopPoll(&mainloop) >= 0)
         {
-            usleep(2000); // [Fix] Spinel : response timeout
+            // usleep(2000); // [Fix] Spinel : response timeout
+            pthread_mutex_lock(&gLock);
+
             otSysMainloopProcess(gInstance, &mainloop);
+
+            pthread_mutex_unlock(&gLock);
         }
         else if (errno != EINTR)
         {
