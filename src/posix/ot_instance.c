@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -81,13 +82,13 @@ static otInstance *InitInstance(PosixConfig *aConfig)
 {
     otInstance *instance = NULL;
 
-    otLogInfoPlat("Running %s", otGetVersionString());
-    otLogInfoPlat("Thread version: %hu", otThreadGetVersion());
+    syslog(LOG_INFO, "Running %s", otGetVersionString());
+    syslog(LOG_INFO, "Thread version: %hu", otThreadGetVersion());
     IgnoreError(otLoggingSetLevel(aConfig->mLogLevel));
 
     instance = otSysInit(&aConfig->mPlatformConfig);
     VerifyOrDie(instance != NULL, OT_EXIT_FAILURE);
-    otLogInfoPlat("Thread interface: %s", otSysGetThreadNetifName());
+    syslog(LOG_INFO, "Thread interface: %s", otSysGetThreadNetifName());
 
     if (aConfig->mPrintRadioVersion)
     {
@@ -95,7 +96,7 @@ static otInstance *InitInstance(PosixConfig *aConfig)
     }
     else
     {
-        otLogInfoPlat("RCP version: %s", otPlatRadioGetVersionString(instance));
+        syslog(LOG_INFO, "RCP version: %s", otPlatRadioGetVersionString(instance));
     }
 
     if (aConfig->mPlatformConfig.mDryRun)
@@ -128,7 +129,7 @@ static bool getRadioURL(char *comPort)
     sprintf(radioDevice, "/dev/%s", comPort);
     if (stat(radioDevice, &st) == 0)
     {
-        otLogInfoPlat("radio device found [%s]", radioDevice);
+        syslog(LOG_INFO, "radio device found [%s]", radioDevice);
         return true;
     }
     return false;
@@ -147,18 +148,18 @@ static int getInterface()
         sprintf(wpanInterface, "/sys/class/net/wpan%d", i);
         if (stat(wpanInterface, &st) == 0)
         {
-            otLogInfoPlat("Interface is already used [%s]", wpanInterface);
+            syslog(LOG_INFO, "Interface is already used [%s]", wpanInterface);
             continue;
         }
         else
         {
-            otLogInfoPlat("find empty interface [%s]", wpanInterface);
+            syslog(LOG_INFO, "find empty interface [%s]", wpanInterface);
             break;
         }
     }
     if (i == MULTIPLE_INSTANCE_MAX)
     {
-        otLogInfoPlat("Not valid radio device found!!!!");
+        syslog(LOG_INFO, "Not valid radio device found!!!!");
         return -1;
     }
 
@@ -180,19 +181,19 @@ void otCreateInstance(void *arg)
 
     memset(&config, 0, sizeof(config));
 
-    otLogInfoPlat("otCreateInstance");
+    syslog(LOG_INFO, "otCreateInstance");
 
     interfaceIdx = getInterface();
     sprintf(iface, "wpan%d", interfaceIdx);
-    otLogInfoPlat("interface found [%s]", iface);
+    syslog(LOG_INFO, "interface found [%s]", iface);
 
     if (!getRadioURL(initParam->comPort))
     {
         return;
     }
     sprintf(radioUrl, "spinel+hdlc+uart:///dev/%s", initParam->comPort);
-    otLogInfoPlat("radio Url found [%s]", radioUrl);
-    otLogInfoPlat("debug level [%d]", initParam->debugLevel);
+    syslog(LOG_INFO, "radio Url found [%s]", radioUrl);
+    syslog(LOG_INFO, "debug level [%d]", initParam->debugLevel);
 
     config.mLogLevel                      = initParam->debugLevel;
     config.mIsVerbose                     = true;
@@ -205,10 +206,6 @@ void otCreateInstance(void *arg)
 
     gInstance = InitInstance(&config);
     otLogInfoPlat("ot instance create success!!!");
-    otIp6SetEnabled(gInstance, true);
-    otLogInfoPlat("if config up done");
-    otThreadSetEnabled(gInstance, true);
-    otLogInfoPlat("thread start done");
 
     pthread_mutex_unlock(&gLock);
 
@@ -251,13 +248,13 @@ exit:
     gThreadId  = 0;
     gInstance  = NULL;
     gTerminate = false;
-    otLogInfoPlat("terminate thread mainloop : exit");
+    syslog(LOG_INFO, "terminate thread mainloop : exit");
     return;
 }
 
 void *otThreadMainLoop(void *arg)
 {
-    otLogInfoPlat("Inside otThreadMainLoop");
+    syslog(LOG_INFO, "Inside otThreadMainLoop");
 
     otCreateInstance(arg);
 
@@ -270,11 +267,11 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId, const char *com
     strcpy(initParam->comPort, comPort);
     initParam->debugLevel = debug;
 
-    otLogInfoPlat("otGetInstance");
+    syslog(LOG_INFO, "otGetInstance");
 
     if (gInstance)
     {
-        otLogInfoPlat("ot instance already initialised!!!");
+        syslog(LOG_INFO, "ot instance already initialised!!!");
         *instance  = gInstance;
         instanceId = &gThreadId;
         return;
@@ -282,14 +279,14 @@ void otGetInstance(otInstance **instance, pthread_t *instanceId, const char *com
 
     if (pthread_mutex_init(&gLock, NULL) != 0)
     {
-        otLogInfoPlat("mutex init has failed");
+        syslog(LOG_INFO, "mutex init has failed");
         return;
     }
 
-    otLogInfoPlat("Before otThread");
+    syslog(LOG_INFO, "Before otThread");
     pthread_create(&gThreadId, NULL, otThreadMainLoop, initParam);
 
-    otLogInfoPlat("Wait for 1 Seconds to initialise openthread stack !!!");
+    syslog(LOG_INFO, "Wait for 1 Seconds to initialise openthread stack !!!");
     sleep(1);
 
     pthread_mutex_lock(&gLock);
