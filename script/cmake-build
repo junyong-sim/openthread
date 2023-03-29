@@ -107,6 +107,65 @@ readonly OT_POSIX_SIM_COMMON_OPTIONS=(
     "-DOT_UPTIME=ON"
 )
 
+readonly OT_POSIX_SIM_MTD_COMMON_OPTIONS=(
+    "-DOT_ANYCAST_LOCATOR=ON"
+    "-DOT_COAP=ON"
+    "-DOT_COAP_BLOCK=ON"
+    "-DOT_COAP_OBSERVE=ON"
+    "-DOT_COAPS=ON"
+    "-DOT_CHILD_SUPERVISION=ON"
+    "-DOT_DHCP6_CLIENT=ON"
+    "-DOT_DIAGNOSTIC=ON"
+    "-DOT_DNS_CLIENT=ON"
+    "-DOT_ECDSA=ON"
+    "-DOT_EXTERNAL_HEAP=ON"
+    "-DOT_HISTORY_TRACKER=ON"
+    "-DOT_IP6_FRAGM=ON"
+    "-DOT_JAM_DETECTION=ON"
+    "-DOT_MAC_FILTER=ON"
+    "-DOT_MTD_NETDIAG=ON"
+    "-DOT_PING_SENDER=ON"
+    "-DOT_REFERENCE_DEVICE=ON"
+    "-DOT_SNTP_CLIENT=ON"
+    "-DOT_SRP_CLIENT=ON"
+    "-DOT_COVERAGE=ON"
+    "-DOT_LOG_LEVEL_DYNAMIC=ON"
+    "-DOT_COMPILE_WARNING_AS_ERROR=ON"
+    "-DOT_RCP_RESTORATION_MAX_COUNT=2"
+    "-DOT_UPTIME=ON"
+)
+
+readonly OT_POSIX_SIM_SSED_COMMON_OPTIONS=(
+    "-DOT_ANYCAST_LOCATOR=ON"
+    "-DOT_COAP=ON"
+    "-DOT_COAP_BLOCK=ON"
+    "-DOT_COAP_OBSERVE=ON"
+    "-DOT_COAPS=ON"
+    "-DOT_CHILD_SUPERVISION=ON"
+    "-DOT_DHCP6_CLIENT=ON"
+    "-DOT_DIAGNOSTIC=ON"
+    "-DOT_DNS_CLIENT=ON"
+    "-DOT_ECDSA=ON"
+    "-DOT_EXTERNAL_HEAP=ON"
+    "-DOT_HISTORY_TRACKER=ON"
+    "-DOT_IP6_FRAGM=ON"
+    "-DOT_JAM_DETECTION=ON"
+    "-DOT_MAC_FILTER=ON"
+    "-DOT_MTD_NETDIAG=ON"
+    "-DOT_PING_SENDER=ON"
+    "-DOT_REFERENCE_DEVICE=ON"
+    "-DOT_SNTP_CLIENT=ON"
+    "-DOT_SRP_CLIENT=ON"
+    "-DOT_COVERAGE=ON"
+    "-DOT_LOG_LEVEL_DYNAMIC=ON"
+    "-DOT_COMPILE_WARNING_AS_ERROR=ON"
+    "-DOT_RCP_RESTORATION_MAX_COUNT=2"
+    "-DOT_UPTIME=ON"
+    "-DOT_CSL_AUTO_SYNC=ON"
+    "-DOT_CSL_RECEIVER=ON"
+    "-DOT_TIME_SYNC=ON"
+)
+
 die()
 {
     echo " ** ERROR: Openthread CMake doesn't support platform \"$1\""
@@ -141,6 +200,7 @@ main()
     fi
 
     local platform="$1"
+    local deviceType="$2" # FTD or MTD
     # Check if the platform supports cmake.
     echo "${OT_PLATFORMS[@]}" | grep -wq "${platform}" || die "${platform}"
 
@@ -149,6 +209,7 @@ main()
     local options=(
         "-DOT_PLATFORM=${platform}"
         "-DOT_SLAAC=ON"
+        "-DOT_PLATFORM_NETIF=ON"
     )
 
     case "${platform}" in
@@ -157,7 +218,11 @@ main()
                 "-DOT_LOG_OUTPUT=PLATFORM_DEFINED"
                 "-DOT_POSIX_MAX_POWER_TABLE=ON"
             )
-            options+=("${OT_POSIX_SIM_COMMON_OPTIONS[@]}" "${local_options[@]}")
+            if [ "${deviceType}" == "-DOT_MTD=ON" ]; then
+                options+=("${OT_POSIX_SIM_MTD_COMMON_OPTIONS[@]}" "${local_options[@]}")
+            else
+                options+=("${OT_POSIX_SIM_COMMON_OPTIONS[@]}" "${local_options[@]}")
+            fi
             ;;
         simulation)
             local_options=("-DOT_LINK_RAW=ON")

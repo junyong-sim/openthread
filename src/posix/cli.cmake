@@ -43,20 +43,35 @@ target_compile_options(ot-cli PRIVATE
     ${OT_CFLAGS}
 )
 
-target_link_libraries(ot-cli
-    openthread-cli-ftd
-    openthread-posix
-    openthread-ftd
-    openthread-posix
-    openthread-cli-ftd
-    openthread-hdlc
-    openthread-spinel-rcp
-    ${OT_MBEDTLS}
-    ${READLINE_LINK_LIBRARIES}
-    ot-config-ftd
-    ot-config
-)
-
+if(OT_FTD)
+    target_link_libraries(ot-cli
+        openthread-cli-ftd
+        openthread-posix
+        openthread-ftd
+        openthread-posix
+        openthread-cli-ftd
+        openthread-hdlc
+        openthread-spinel-rcp
+        ${OT_MBEDTLS}
+        ${READLINE_LINK_LIBRARIES}
+        ot-config-ftd
+        ot-config
+    )
+elseif(OT_MTD)
+    target_link_libraries(ot-cli
+        openthread-cli-mtd
+        openthread-posix
+        openthread-mtd
+        openthread-posix
+        openthread-cli-mtd
+        openthread-hdlc
+        openthread-spinel-rcp
+        ${OT_MBEDTLS}
+        ${READLINE_LINK_LIBRARIES}
+        ot-config-mtd
+        ot-config
+    )
+endif()
 
 install(TARGETS ot-cli DESTINATION bin)
 
