@@ -320,6 +320,7 @@ void otUnlock()
 void otDestroyInstance()
 {
     otLogInfoPlat("otDestroyInstance");
-    pthread_mutex_destroy(&gLock);
     gTerminate   = true;
+    otWait();
+    pthread_mutex_destroy(&gLock);
 }
