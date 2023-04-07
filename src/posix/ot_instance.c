@@ -204,6 +204,7 @@ void otCreateInstance(void *arg)
     config.mPlatformConfig.mRealTimeSignal                                   = 41;
     config.mPlatformConfig.mSpeedUpFactor                                    = 1;
 
+    free(initParam);
     gInstance = InitInstance(&config);
     otLogInfoPlat("ot instance create success!!!");
 
