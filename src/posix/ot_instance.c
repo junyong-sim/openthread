@@ -86,11 +86,15 @@ static otInstance *InitInstance(PosixConfig *aConfig)
 
     syslog(LOG_INFO, "Running %s", otGetVersionString());
     syslog(LOG_INFO, "Thread version: %hu", otThreadGetVersion());
+    printf("Running %s\n", otGetVersionString());
+    printf("Thread version: %hu\n", otThreadGetVersion());
+
     IgnoreError(otLoggingSetLevel(aConfig->mLogLevel));
 
     instance = otSysInit(&aConfig->mPlatformConfig);
     VerifyOrDie(instance != NULL, OT_EXIT_FAILURE);
-    syslog(LOG_INFO, "Thread interface: %s", otSysGetThreadNetifName());
+    syslog(LOG_INFO, "Thread interface: %s\n", otSysGetThreadNetifName());
+    printf("Thread interface: %s\n", otSysGetThreadNetifName());
 
     if (aConfig->mPrintRadioVersion)
     {
@@ -137,31 +141,32 @@ static bool getRadioURL(char *comPort)
 
 static int getInterface(void)
 {
-    struct stat st;
-    int         i                        = 0;
-    char        iface[MAX_INTERFACE_LEN] = {0};
+    return 3;
+    // struct stat st;
+    // int         i                        = 0;
+    // char        iface[MAX_INTERFACE_LEN] = {0};
 
-    for (i = 0; i < MULTIPLE_INSTANCE_MAX; i++)
-    {
-        sprintf(iface, "/sys/class/net/wpan%d", i);
-        if (stat(iface, &st) == 0)
-        {
-            syslog(LOG_INFO, "Interface is already used [%s]", iface);
-            continue;
-        }
-        else
-        {
-            syslog(LOG_INFO, "find empty interface [%s]", iface);
-            break;
-        }
-    }
-    if (i == MULTIPLE_INSTANCE_MAX)
-    {
-        syslog(LOG_CRIT, "Interface reached max count...Not able to create new inteface");
-        return -1;
-    }
+    // for (i = 0; i < MULTIPLE_INSTANCE_MAX; i++)
+    // {
+    //     sprintf(iface, "/sys/class/net/wpan%d", i);
+    //     if (stat(iface, &st) == 0)
+    //     {
+    //         syslog(LOG_INFO, "Interface is already used [%s]", iface);
+    //         continue;
+    //     }
+    //     else
+    //     {
+    //         syslog(LOG_INFO, "find empty interface [%s]", iface);
+    //         break;
+    //     }
+    // }
+    // if (i == MULTIPLE_INSTANCE_MAX)
+    // {
+    //     syslog(LOG_CRIT, "Interface reached max count...Not able to create new inteface");
+    //     return -1;
+    // }
 
-    return i;
+    // return i;
 }
 
 void otCreateInstance(void *arg)
@@ -176,10 +181,13 @@ void otCreateInstance(void *arg)
     memset(&config, 0, sizeof(config));
 
     syslog(LOG_INFO, "otCreateInstance");
+    printf("otCreateInstance\n");
 
     interfaceIdx = getInterface();
-    sprintf(iface, "wpan%d", interfaceIdx);
+    // sprintf(iface, "wpan%d", interfaceIdx);
+    sprintf(iface, "utun%d", interfaceIdx);
     syslog(LOG_INFO, "interface found [%s]", iface);
+    printf("interface found [%s]\n", iface);
 
     if (!getRadioURL(initParam->comPort))
     {
@@ -189,6 +197,9 @@ void otCreateInstance(void *arg)
     sprintf(radioUrl, "spinel+hdlc+uart:///dev/%s", initParam->comPort);
     syslog(LOG_INFO, "radio Url found [%s]", radioUrl);
     syslog(LOG_INFO, "debug level [%d]", initParam->debugLevel);
+
+    printf("radio Url found [%s]\n", radioUrl);
+    printf("debug level [%d]\n", initParam->debugLevel);
 
     config.mLogLevel                      = initParam->debugLevel;
     config.mIsVerbose                     = true;
