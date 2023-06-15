@@ -192,17 +192,3 @@ target_include_directories(ot-posix-test-settings
         ${PROJECT_SOURCE_DIR}/src/posix/platform/include
 )
 add_test(NAME ot-posix-test-settings COMMAND ot-posix-test-settings)
-
-option(OT_SHARED_LIB "Enable generation of openthread shared libraries" OFF)
-if(OT_SHARED_LIB)
-    target_compile_definitions(ot-posix-config
-        INTERFACE "OPENTHREAD_POSIX_CONFIG_MULTITHREAD_SUPPORT_ENABLE=1"
-    )
-    target_compile_options(ot-posix-config INTERFACE -fPIC)
-    if(OT_FTD)
-        include(ftd-shared.cmake)
-    endif()
-    if(OT_MTD)
-        include(mtd-shared.cmake)
-    endif()
-endif()
