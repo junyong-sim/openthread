@@ -146,7 +146,11 @@ void *pThreadOtMainLoop(void *arg)
     IgnoreError(otLoggingSetLevel(config->mOtLogLevel));
 
     gInstance = otSysInit(&platformConfig);
-    VerifyOrDie(gInstance != NULL, OT_EXIT_FAILURE);
+    if (gInstance == nullptr)
+    {
+        syslog(LOG_INFO, "otSysInit failed");
+        DieNow(OT_EXIT_FAILURE);
+    }
     syslog(LOG_INFO, "Thread interface: %s", otSysGetThreadNetifName());
     syslog(LOG_INFO, "RCP version: %s", otPlatRadioGetVersionString(gInstance));
 
@@ -187,10 +191,15 @@ void *pThreadOtMainLoop(void *arg)
     }
 
 exit:
-    otSysDeinit();
+    if (gInstance)
+    {
+        otSysDeinit();
+    }
     gThreadId  = 0;
-    gInstance  = NULL;
+    gInstance  = nullptr;
     gTerminate = false;
+    pthread_cond_signal(&gCond);
+    pthread_mutex_unlock(&gLock);
     syslog(LOG_INFO, "terminate thread mainloop : exit");
     return nullptr;
 }
@@ -215,18 +224,14 @@ void otSysGetInstance(otInstance **aInstance, const char *aComPort, uint16_t aOt
     config->mOtLogLevel = aOtLogLevel;
 
     VerifyOrExit(pthread_mutex_init(&gLock, NULL) == 0, syslog(LOG_INFO, "mutex init has failed"));
-
     VerifyOrExit(pthread_cond_init(&gCond, NULL) == 0, syslog(LOG_INFO, "cond init has failed"));
 
     pthread_create(&gThreadId, NULL, pThreadOtMainLoop, config);
     pthread_mutex_lock(&gLock);
-
     syslog(LOG_INFO, "Wait for signal to initialise openthread stack !!!");
     pthread_cond_wait(&gCond, &gLock);
-
     *aInstance = gInstance;
-
-    otLogDebgPlat("otThread : gThreadId[%ld]", gThreadId);
+    syslog(LOG_INFO, "otThread : gThreadId[%ld]", gThreadId);
     pthread_mutex_unlock(&gLock);
 
 exit:
