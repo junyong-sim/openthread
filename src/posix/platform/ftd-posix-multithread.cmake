@@ -30,10 +30,8 @@ add_library(openthread-ftd-posix-multithread SHARED
     multithread_api.cpp
 )
 
-target_compile_options(openthread-ftd-posix-multithread PRIVATE
-    ${OT_CFLAGS}	
-    -fPIC
-)
+target_compile_definitions(ot-config-ftd INTERFACE "OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS=3")
+target_compile_options(ot-config-ftd INTERFACE -fPIC)
 
 target_link_libraries(openthread-ftd-posix-multithread
     PRIVATE

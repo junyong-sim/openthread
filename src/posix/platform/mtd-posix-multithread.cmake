@@ -30,10 +30,8 @@ add_library(openthread-mtd-posix-multithread SHARED
     multithread_api.cpp
 )
 
-target_compile_options(openthread-mtd-posix-multithread PRIVATE 
-    ${OT_CFLAGS}	
-    -fPIC
-)
+target_compile_definitions(ot-config-mtd INTERFACE "OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS=3")
+target_compile_options(ot-config-mtd INTERFACE -fPIC)
 
 target_link_libraries(openthread-mtd-posix-multithread
     PRIVATE

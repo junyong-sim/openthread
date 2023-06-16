@@ -36,13 +36,6 @@ target_compile_options(openthread-mtd PRIVATE
     ${OT_CFLAGS}
 )
 
-if (OT_MULTITHREAD)
-    target_compile_definitions(openthread-mtd PRIVATE
-        OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS=3
-    )
-    target_compile_options(openthread-mtd PRIVATE -fPIC)
-endif()
-
 target_include_directories(openthread-mtd PUBLIC ${OT_PUBLIC_INCLUDES} PRIVATE ${COMMON_INCLUDES})
 
 target_sources(openthread-mtd PRIVATE ${COMMON_SOURCES})
