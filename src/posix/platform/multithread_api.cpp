@@ -129,7 +129,7 @@ void *pThreadOtMainLoop(void *arg)
     syslog(LOG_INFO, "interface found [%s]", iface);
 
     VerifyOrExit(getRadioURL(config->mComPort) != false, syslog(LOG_CRIT, "radio device not found"));
-    snprintf(radioUrl, sizeof(radioUrl), "spinel+hdlc+uart:///dev/%s", config->mComPort);
+    snprintf(radioUrl, sizeof(radioUrl), "spinel+hdlc+uart:///dev/%s?uart-baudrate=1000000", config->mComPort);
     syslog(LOG_INFO, "radio Url found [%s]", radioUrl);
     syslog(LOG_INFO, "ot log level [%d]", config->mOtLogLevel);
 
